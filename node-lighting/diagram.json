@@ -8,7 +8,7 @@
       "id": "esp",
       "top": -67.38,
       "left": 388.57,
-      "attrs": { "env": "micropython-20231227-v1.22.0", "flashSize": "8" }
+      "attrs": { "env": "arduino", "flashSize": "8" }
     },
     { "type": "wokwi-relay-module", "id": "relay1", "top": 317, "left": 374.4, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay2", "top": 403.4, "left": 374.4, "attrs": {} },
