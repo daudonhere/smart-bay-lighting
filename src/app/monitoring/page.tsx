@@ -1,37 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useMqtt } from '@/contexts/MqttContext';
 import { BayStatus, RelayStatus } from '@/lib/mqtt/config';
 
 export default function MonitoringPage() {
+  const { connected, lastStatus } = useMqtt();
   const [status, setStatus] = useState<BayStatus | null>(null);
-  const [mqttConnected, setMqttConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
   useEffect(() => {
-    // Initial fetch
-    fetchStatus();
-
-    // Polling every 2 seconds
-    const interval = setInterval(fetchStatus, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch('/api/mqtt/status');
-      const data = await res.json();
-      
-      if (data.data) {
-        setStatus(data.data);
-        setLastUpdate(new Date().toLocaleTimeString());
-        setMqttConnected(data.mqtt?.connected || false);
-      }
-    } catch (err) {
-      console.error('Failed to fetch status:', err);
+    if (lastStatus) {
+      setStatus(lastStatus);
+      setLastUpdate(new Date().toLocaleTimeString());
     }
-  };
+  }, [lastStatus]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
@@ -92,8 +75,8 @@ export default function MonitoringPage() {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${mqttConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                <span className="text-sm text-zinc-400">MQTT: {mqttConnected ? 'Connected' : 'Disconnected'}</span>
+                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <span className="text-sm text-zinc-400">MQTT: {connected ? 'Connected' : 'Disconnected'}</span>
               </div>
               <span className="text-sm text-zinc-600">Last update: {lastUpdate || 'Never'}</span>
             </div>

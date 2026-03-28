@@ -3,8 +3,8 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID = "Wokwi-GUEST";
+const char* WIFI_PASSWORD = "";
 const char* MQTT_BROKER = "broker.emqx.io";
 const int MQTT_PORT = 1883;
 
@@ -20,20 +20,21 @@ struct Bay {
   const char* bayId;
   int relayPin;
   bool active;
+  bool hasError;
   unsigned long endTime;
 };
 
 Bay bays[3] = {
-  {"bay-01", RELAY_BAY1, false, 0},
-  {"bay-02", RELAY_BAY2, false, 0},
-  {"bay-03", RELAY_BAY3, false, 0},
+  {"bay-01", RELAY_BAY1, false, false, 0},
+  {"bay-02", RELAY_BAY2, false, false, 0},
+  {"bay-03", RELAY_BAY3, false, false, 0},
 };
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 unsigned long lastStatusPublish = 0;
-const unsigned long STATUS_INTERVAL = 5000;
+const unsigned long STATUS_INTERVAL = 10000;
 
 void connectWiFi() {
   Serial.print("Connecting to WiFi");
@@ -50,6 +51,7 @@ void connectWiFi() {
 void turnOnBay(Bay& bay) {
   digitalWrite(bay.relayPin, HIGH);
   bay.active = true;
+  bay.hasError = false;
   bay.endTime = millis() + 3600000;
   Serial.printf("BAY %s: ON\n", bay.bayId);
 }
@@ -61,8 +63,95 @@ void turnOffBay(Bay& bay) {
   Serial.printf("BAY %s: OFF\n", bay.bayId);
 }
 
+void setErrorBay(Bay& bay) {
+  bay.hasError = true;
+  bay.active = false;
+  digitalWrite(bay.relayPin, LOW);
+  Serial.printf("BAY %s: ERROR\n", bay.bayId);
+}
+
+void publishBookingResponse(JsonVariant bookingData) {
+  JsonDocument doc;
+  JsonObject result = doc["result"].to<JsonObject>();
+  result["success"] = true;
+  
+  JsonArray dataArray = result["data"].to<JsonArray>();
+  JsonObject bookingObj = dataArray.add<JsonObject>();
+  
+  bookingObj["event"] = bookingData["event"] | "booking_started";
+  bookingObj["booking_id"] = bookingData["booking_id"] | "";
+  bookingObj["bay_id"] = bookingData["bay_id"] | "";
+  bookingObj["customer"] = bookingData["customer"] | "";
+  bookingObj["start_time"] = bookingData["start_time"] | "";
+  bookingObj["end_time"] = bookingData["end_time"] | "";
+  
+  result["count"] = 1;
+  
+  char output[512];
+  serializeJson(doc, output);
+  client.publish(TOPIC_STATUS, output);
+  Serial.printf("Booking response published\n");
+}
+
+void publishStatus() {
+  JsonDocument doc;
+  JsonObject result = doc["result"].to<JsonObject>();
+  result["success"] = true;
+  
+  JsonArray dataArray = result["data"].to<JsonArray>();
+  int activeCount = 0;
+  
+  for (int i = 0; i < 3; i++) {
+    if (bays[i].active) {
+      JsonObject bookingObj = dataArray.add<JsonObject>();
+      bookingObj["event"] = "booking_started";
+      bookingObj["booking_id"] = "active-booking";
+      bookingObj["bay_id"] = bays[i].bayId;
+      bookingObj["customer"] = "Active User";
+      bookingObj["start_time"] = "2026-03-28T10:00:00.000Z";
+      bookingObj["end_time"] = "2026-03-28T11:00:00.000Z";
+      activeCount++;
+    }
+  }
+  
+  if (activeCount == 0) {
+    dataArray.add<JsonObject>();
+  }
+  
+  result["count"] = activeCount > 0 ? activeCount : 3;
+  
+  char output[512];
+  serializeJson(doc, output);
+  client.publish(TOPIC_STATUS, output);
+}
+
+void publishErrorReport() {
+  JsonDocument doc;
+  JsonObject result = doc["result"].to<JsonObject>();
+  result["success"] = true;
+  
+  JsonArray dataArray = result["data"].to<JsonArray>();
+  int errorCount = 0;
+  
+  for (int i = 0; i < 3; i++) {
+    if (bays[i].hasError) {
+      JsonObject errorObj = dataArray.add<JsonObject>();
+      errorObj["bay_id"] = bays[i].bayId;
+      errorObj["message"] = "failure";
+      errorCount++;
+    }
+  }
+  
+  result["count"] = 3 - errorCount;
+  
+  char output[512];
+  serializeJson(doc, output);
+  client.publish(TOPIC_STATUS, output);
+  Serial.printf("Error report published\n");
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload, length);
   
   if (error) {
@@ -75,10 +164,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (strcmp(topic, TOPIC_BOOKING) == 0) {
     const char* event = doc["event"];
     
+    bool bayFound = false;
     for (int i = 0; i < 3; i++) {
       if (strcmp(bays[i].bayId, bayId) == 0) {
+        bayFound = true;
+        
         if (strcmp(event, "booking_started") == 0) {
           turnOnBay(bays[i]);
+          publishBookingResponse(doc.as<JsonVariant>());
         }
         else if (strcmp(event, "booking_ended") == 0) {
           turnOffBay(bays[i]);
@@ -89,6 +182,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
         }
         break;
       }
+    }
+    
+    if (!bayFound) {
+      Serial.printf("Unknown bay: %s\n", bayId);
     }
   }
   else if (strcmp(topic, TOPIC_COMMAND) == 0) {
@@ -101,6 +198,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
         }
         else if (strcmp(command, "turn_off") == 0) {
           turnOffBay(bays[i]);
+        }
+        else if (strcmp(command, "reset_error") == 0) {
+          bays[i].hasError = false;
+          Serial.printf("BAY %s: ERROR RESET\n", bays[i].bayId);
         }
         break;
       }
@@ -130,28 +231,6 @@ void connectMQTT() {
   }
 }
 
-void publishStatus() {
-  StaticJsonDocument<512> doc;
-  doc["success"] = true;
-  doc["device_id"] = ("esp32-" + String(random(0xffff), HEX)).c_str();
-  
-  JsonArray baysArray = doc.createNestedArray("bays");
-  
-  for (int i = 0; i < 3; i++) {
-    JsonObject bayObj = baysArray.createNestedObject();
-    bayObj["bay_id"] = bays[i].bayId;
-    bayObj["relay_pin"] = bays[i].relayPin;
-    bayObj["active"] = bays[i].active;
-    bayObj["lamp_1"] = digitalRead(bays[i].relayPin) == HIGH;
-    bayObj["lamp_2"] = digitalRead(bays[i].relayPin) == HIGH;
-  }
-  
-  char output[512];
-  serializeJson(doc, output);
-  client.publish(TOPIC_STATUS, output);
-  Serial.printf("Status: %s\n", output);
-}
-
 void checkTimers() {
   unsigned long now = millis();
   
@@ -162,6 +241,20 @@ void checkTimers() {
         Serial.printf("Timer EXPIRED: %s\n", bays[i].bayId);
       }
     }
+  }
+}
+
+void checkErrors() {
+  bool hasAnyError = false;
+  for (int i = 0; i < 3; i++) {
+    if (bays[i].hasError) {
+      hasAnyError = true;
+      break;
+    }
+  }
+  
+  if (hasAnyError) {
+    publishErrorReport();
   }
 }
 
@@ -179,13 +272,15 @@ void setup() {
   digitalWrite(RELAY_BAY2, LOW);
   digitalWrite(RELAY_BAY3, LOW);
   
-  Serial.println("Bays initialized");
+  Serial.println("Bays initialized (ALL OFF)");
   Serial.println("Bay 01 -> GPIO 4");
   Serial.println("Bay 02 -> GPIO 5");
   Serial.println("Bay 03 -> GPIO 6");
   
   connectWiFi();
   connectMQTT();
+  
+  publishStatus();
   
   Serial.println("System ready!\n");
 }
@@ -198,6 +293,7 @@ void loop() {
   }
   
   checkTimers();
+  checkErrors();
   
   unsigned long now = millis();
   if (now - lastStatusPublish > STATUS_INTERVAL) {
