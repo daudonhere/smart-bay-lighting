@@ -20,9 +20,15 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const defaultBays = ['bay-01', 'bay-02', 'bay-03', 'bay-04', 'bay-05', 'bay-06', 'bay-07', 'bay-08'];
+    const body = await request.json().catch(() => ({}));
+    const customBays: string[] = body.bays || [];
+    
+    const baysToCreate = customBays.length > 0 ? customBays : [
+      'bay-01', 'bay-02', 'bay-03', 'bay-04', 
+      'bay-05', 'bay-06', 'bay-07', 'bay-08'
+    ];
 
     const existing = await prisma.bay.findMany({
       select: { name: true },
@@ -30,25 +36,32 @@ export async function POST() {
 
     const existingNames = new Set(existing.map((b) => b.name));
 
-    const baysToCreate = defaultBays.filter((name) => !existingNames.has(name));
+    const newBays = baysToCreate.filter((name) => !existingNames.has(name));
 
-    if (baysToCreate.length === 0) {
+    if (newBays.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'Bays already exist',
-        data: { created: 0, bays: existing.map((b) => b.name) },
+        data: { 
+          created: 0, 
+          bays: baysToCreate,
+          skipped: baysToCreate.filter((name) => existingNames.has(name)),
+        },
       });
     }
 
     const bays = await prisma.bay.createMany({
-      data: baysToCreate.map((name) => ({ name })),
+      data: newBays.map((name) => ({ name })),
     });
+
+    const skipped = baysToCreate.filter((name) => existingNames.has(name));
 
     return NextResponse.json({
       success: true,
       data: {
         created: bays.count,
-        bays: baysToCreate,
+        bays: newBays,
+        ...(skipped.length > 0 && { skipped, message: 'Some bays already existed' }),
       },
     });
   } catch {

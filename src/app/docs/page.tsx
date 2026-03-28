@@ -142,18 +142,18 @@ const endpoints: Endpoint[] = [
   {
     method: 'POST',
     path: '/api/bays',
-    summary: 'Create default bays',
+    summary: 'Create bays',
     body: {
       bays: ['bay-01', 'bay-02', 'bay-03'],
     },
-    note: 'Leave body empty for default 8 bays, or provide custom bay names',
+    note: 'Leave body empty for default 8 bays, or provide custom bay names array',
     response: {
       description: 'Returns created bays count',
       example: {
         success: true,
         data: {
-          created: 8,
-          bays: ['bay-01', 'bay-02', 'bay-03', 'bay-04', 'bay-05', 'bay-06', 'bay-07', 'bay-08'],
+          created: 3,
+          bays: ['bay-01', 'bay-02', 'bay-03'],
         },
       },
     },

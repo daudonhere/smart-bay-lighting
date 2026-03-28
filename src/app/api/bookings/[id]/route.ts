@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UpdateBookingDto } from '@/types/booking';
+import { mqttService } from '@/lib/mqtt/service';
+
+mqttService.connect();
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,6 +110,9 @@ export async function PUT(request: NextRequest) {
       end_time: booking.endTime.toISOString(),
     };
 
+    // Publish to MQTT for ESP32
+    mqttService.publishBooking(eventResponse);
+
     return NextResponse.json({
       success: true,
       data: eventResponse,
@@ -155,6 +161,9 @@ export async function DELETE(request: NextRequest) {
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
     };
+
+    // Publish to MQTT for ESP32
+    mqttService.publishBooking(eventResponse);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { CreateBookingDto } from '@/types/booking';
+import { mqttService } from '@/lib/mqtt/service';
+
+mqttService.connect();
 
 export async function GET() {
   try {
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     if (!bayId || !customerName || !startTime || !endTime) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
     }
@@ -50,14 +53,14 @@ export async function POST(request: NextRequest) {
 
     if (!bay) {
       return NextResponse.json(
-        { error: 'Bay not found' },
+        { success: false, error: 'Bay not found' },
         { status: 404 }
       );
     }
 
     if (!bay.isActive) {
       return NextResponse.json(
-        { error: 'Bay is not active' },
+        { success: false, error: 'Bay is not active' },
         { status: 400 }
       );
     }
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     if (existingBooking) {
       return NextResponse.json(
-        { error: 'Time slot already booked' },
+        { success: false, error: 'Time slot already booked' },
         { status: 409 }
       );
     }
@@ -105,6 +108,9 @@ export async function POST(request: NextRequest) {
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
     };
+
+    // Publish to MQTT for ESP32
+    mqttService.publishBooking(eventResponse);
 
     return NextResponse.json({
       success: true,
