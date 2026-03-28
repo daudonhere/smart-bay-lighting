@@ -59,30 +59,30 @@ export function BookingCard({
   };
 
   return (
-    <div className="group rounded-2xl border border-slate-600 bg-slate-700/50 backdrop-blur-md p-5 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
+    <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-md p-5 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all hover:scale-[1.02]">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/30 to-purple-600/30 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center border border-blue-500/20">
             <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
             </svg>
           </div>
           <div>
-            <h4 className="font-bold text-slate-100">{bayName}</h4>
-            <p className="text-sm text-slate-400">{customerName}</p>
+            <h4 className="font-bold text-zinc-100">{bayName}</h4>
+            <p className="text-sm text-zinc-500">{customerName}</p>
           </div>
         </div>
-        <span className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md ${getStatusStyle()}`}>
+        <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${getStatusStyle()}`}>
           {status.toUpperCase()}
         </span>
       </div>
 
-      <div className="bg-slate-600/30 rounded-xl p-4 mb-4 space-y-2">
+      <div className="bg-zinc-800/50 rounded-xl p-4 mb-4 space-y-2">
         <div className="flex items-center gap-2">
           <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-sm text-slate-300">
+          <span className="text-sm text-zinc-400">
             <span className="font-semibold">Start:</span> {formatTime(startTime)}
           </span>
         </div>
@@ -90,7 +90,7 @@ export function BookingCard({
           <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-sm text-slate-300">
+          <span className="text-sm text-zinc-400">
             <span className="font-semibold">End:</span> {formatTime(endTime)}
           </span>
         </div>

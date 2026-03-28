@@ -33,11 +33,11 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-2 gap-5">
         <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">Bay</label>
+          <label className="block text-sm font-semibold text-zinc-400 mb-2">Bay</label>
           <select
             value={formData.bayId}
             onChange={(e) => setFormData({ ...formData, bayId: e.target.value })}
-            className="w-full rounded-xl border border-slate-600 bg-slate-600/30 px-4 py-3 text-slate-100 focus:border-slate-400 focus:ring-2 focus:ring-slate-700 outline-none transition-all"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
             required
           >
             <option value="">Select a bay</option>
@@ -50,13 +50,13 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">Customer Name</label>
+          <label className="block text-sm font-semibold text-zinc-400 mb-2">Customer Name</label>
           <input
             type="text"
             value={formData.customerName}
             onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
             placeholder="Enter customer name"
-            className="w-full rounded-xl border border-slate-600 bg-slate-600/30 px-4 py-3 text-slate-100 placeholder-slate-500 focus:border-slate-400 focus:ring-2 focus:ring-slate-700 outline-none transition-all"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
             required
           />
         </div>
@@ -64,23 +64,23 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
 
       <div className="grid grid-cols-2 gap-5">
         <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">Start Time</label>
+          <label className="block text-sm font-semibold text-zinc-400 mb-2">Start Time</label>
           <input
             type="datetime-local"
             value={formData.startTime}
             onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-            className="w-full rounded-xl border border-slate-600 bg-slate-600/30 px-4 py-3 text-slate-100 focus:border-slate-400 focus:ring-2 focus:ring-slate-700 outline-none transition-all"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-300 mb-2">End Time</label>
+          <label className="block text-sm font-semibold text-zinc-400 mb-2">End Time</label>
           <input
             type="datetime-local"
             value={formData.endTime}
             onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-            className="w-full rounded-xl border border-slate-600 bg-slate-600/30 px-4 py-3 text-slate-100 focus:border-slate-400 focus:ring-2 focus:ring-slate-700 outline-none transition-all"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
             required
           />
         </div>
@@ -90,7 +90,7 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
         <button
           type="submit"
           disabled={createBooking.isPending}
-          className="flex-1 rounded-xl bg-slate-600 px-6 py-3 text-white font-semibold hover:bg-slate-500 disabled:opacity-50 transition-all hover:scale-[1.02]"
+          className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white font-semibold hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
         >
           {createBooking.isPending ? (
             <span className="flex items-center justify-center gap-2">
@@ -108,7 +108,7 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:bg-slate-600/30 transition-all"
+            className="px-6 py-3 rounded-xl border-2 border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800/50 transition-all"
           >
             Cancel
           </button>
