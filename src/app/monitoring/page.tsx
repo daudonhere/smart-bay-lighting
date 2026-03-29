@@ -2,27 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useMqtt } from '@/contexts/MqttContext';
+import { useMqttCommand } from '@/hooks/useMqttCommand';
 import { RelayStatus } from '@/lib/mqtt/config';
-
-interface MonitoringStatus {
-  result?: {
-    success: boolean;
-    data: Array<{
-      bay_id?: string;
-      active?: boolean;
-      event?: string;
-      booking_id?: string;
-      customer?: string;
-      start_time?: string;
-      end_time?: string;
-    } | null>;
-    count: number;
-  };
-}
+import { Sidebar } from '@/components';
 
 export default function MonitoringPage() {
   const { connected, lastStatus } = useMqtt();
-  const [status, setStatus] = useState<MonitoringStatus | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
   const defaultBays: RelayStatus[] = [
@@ -34,15 +19,20 @@ export default function MonitoringPage() {
   const [bays, setBays] = useState<RelayStatus[]>(defaultBays);
 
   useEffect(() => {
-    if (lastStatus) {
-      setStatus(lastStatus as any);
+    if (connected) {
       setLastUpdate(new Date().toLocaleTimeString());
-      
+    }
+  }, [connected]);
+
+  useEffect(() => {
+    if (lastStatus) {
+      setLastUpdate(new Date().toLocaleTimeString());
+
       if (lastStatus.result?.data) {
         const activeBookings = lastStatus.result.data.filter((item): item is NonNullable<typeof item> => item !== null && item.bay_id !== undefined);
-        
+
         const bayData: RelayStatus[] = [...defaultBays];
-        
+
         activeBookings.forEach((booking) => {
           const bayIndex = bayData.findIndex(b => b.bay_id === booking.bay_id);
           if (bayIndex >= 0) {
@@ -52,7 +42,7 @@ export default function MonitoringPage() {
             bayData[bayIndex].end_time = booking.end_time || null;
           }
         });
-        
+
         setBays(bayData);
       }
     }
@@ -60,53 +50,7 @@ export default function MonitoringPage() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
-      <aside className="w-72 bg-zinc-900/80 backdrop-blur-md border-r border-zinc-800 shadow-xl flex flex-col z-10">
-        <div className="p-6 border-b border-zinc-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Smart Bay
-              </h1>
-              <p className="text-xs text-zinc-500">Sports Lighting</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="mt-6 px-4 flex-1 space-y-2">
-          <a
-            href="/"
-            className="group flex items-center px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-800/50 transition-all hover:scale-[1.02]"
-          >
-            <svg className="w-5 h-5 mr-3 text-zinc-600 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="font-medium">Dashboard</span>
-          </a>
-          <a
-            href="/docs"
-            className="group flex items-center px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-800/50 transition-all hover:scale-[1.02]"
-          >
-            <svg className="w-5 h-5 mr-3 text-zinc-600 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="font-medium">API Docs</span>
-          </a>
-          <a
-            href="/monitoring"
-            className="group flex items-center px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600/90 to-purple-600/90 text-white shadow-lg shadow-blue-500/20 transition-all hover:from-blue-600 hover:to-purple-600 hover:scale-[1.02]"
-          >
-            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="font-medium">Monitoring</span>
-          </a>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800 shadow-sm flex-shrink-0">
@@ -120,7 +64,9 @@ export default function MonitoringPage() {
                 <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-zinc-400">MQTT: {connected ? 'Connected' : 'Disconnected'}</span>
               </div>
-              <span className="text-sm text-zinc-600">Last update: {lastUpdate || 'Never'}</span>
+              {connected && (
+                <span className="text-sm text-zinc-600">Last update: {lastUpdate}</span>
+              )}
             </div>
           </div>
         </header>
@@ -132,22 +78,6 @@ export default function MonitoringPage() {
                 <BayCard key={bay.bay_id} bay={bay} />
               ))}
             </div>
-
-            <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl border border-zinc-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-zinc-100">Device Status</h3>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
-                  <span className="text-sm text-zinc-400">{connected ? 'Connected to ESP32' : 'Waiting for device...'}</span>
-                </div>
-              </div>
-              {lastUpdate && (
-                <p className="text-sm text-zinc-500 mb-4">Last update: {lastUpdate}</p>
-              )}
-              <pre className="bg-zinc-950 text-zinc-100 rounded-xl p-4 text-xs overflow-auto max-h-96 font-mono border border-zinc-800">
-                {JSON.stringify(status || { message: 'Waiting for MQTT data from ESP32...' }, null, 2)}
-              </pre>
-            </div>
           </div>
         </main>
       </div>
@@ -156,20 +86,40 @@ export default function MonitoringPage() {
 }
 
 function BayCard({ bay }: { bay: RelayStatus }) {
-  const isActive = bay.active;
+  const { lastStatus } = useMqtt();
+  const { mutate: sendCommand, isPending } = useMqttCommand();
+  const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
+
+  const isBayInActiveList = lastStatus?.result?.data?.some((b: any) => b?.bay_id === bay.bay_id);
+  const isActive = optimisticState !== null ? optimisticState : (isBayInActiveList ?? bay.active);
+
+  useEffect(() => {
+    if (isBayInActiveList !== undefined) {
+      setOptimisticState(null);
+    }
+  }, [isBayInActiveList]);
+
+  const handleToggle = () => {
+    const newState = !isActive;
+    setOptimisticState(newState);
+    sendCommand({
+      command: newState ? 'turn_on' : 'turn_off',
+      bay_id: bay.bay_id,
+    });
+  };
 
   return (
     <div className={`rounded-2xl border p-6 backdrop-blur-md transition-all ${
-      isActive 
-        ? 'border-blue-500/50 bg-blue-900/20 shadow-lg shadow-blue-500/10' 
+      isActive
+        ? 'border-blue-500/50 bg-blue-900/20 shadow-lg shadow-blue-500/10'
         : 'border-zinc-800 bg-zinc-900/60'
     }`}>
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-lg font-bold text-zinc-100">{bay.bay_id}</h4>
+        <h4 className="text-lg font-bold text-zinc-100 uppercase">{bay.bay_id}</h4>
         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-          isActive 
-            ? 'bg-green-600 text-white' 
-            : 'bg-zinc-700 text-zinc-400'
+          isActive
+            ? 'bg-green-600 text-white'
+            : 'bg-red-600 text-white'
         }`}>
           {isActive ? 'ACTIVE' : 'INACTIVE'}
         </span>
@@ -196,17 +146,17 @@ function BayCard({ bay }: { bay: RelayStatus }) {
           <div className="flex gap-4">
             <div className="flex-1 bg-zinc-800/50 rounded-lg p-3 text-center">
               <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
-                bay.lamps.lamp_1 ? 'bg-yellow-400 animate-pulse' : 'bg-zinc-600'
+                isActive ? 'bg-green-400 animate-pulse' : 'bg-red-600'
               }`}></div>
-              <span className={`text-xs ${bay.lamps.lamp_1 ? 'text-yellow-400' : 'text-zinc-500'}`}>
+              <span className={`text-xs uppercase ${isActive ? 'text-green-400' : 'text-red-500'}`}>
                 Lamp 1
               </span>
             </div>
             <div className="flex-1 bg-zinc-800/50 rounded-lg p-3 text-center">
               <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
-                bay.lamps.lamp_2 ? 'bg-yellow-400 animate-pulse' : 'bg-zinc-600'
+                isActive ? 'bg-green-400 animate-pulse' : 'bg-red-600'
               }`}></div>
-              <span className={`text-xs ${bay.lamps.lamp_2 ? 'text-yellow-400' : 'text-zinc-500'}`}>
+              <span className={`text-xs uppercase ${isActive ? 'text-green-400' : 'text-red-500'}`}>
                 Lamp 2
               </span>
             </div>
@@ -222,6 +172,33 @@ function BayCard({ bay }: { bay: RelayStatus }) {
           </div>
         )}
       </div>
+
+      <button
+        onClick={handleToggle}
+        disabled={isPending}
+        className={`mt-4 w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+          isActive
+            ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-lg shadow-red-500/25'
+            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg shadow-green-500/25'
+        } ${isPending ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+      >
+        {isPending ? (
+          <>
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Processing...
+          </>
+        ) : (
+          <>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            {isActive ? 'Turn Off' : 'Turn On'}
+          </>
+        )}
+      </button>
     </div>
   );
 }
