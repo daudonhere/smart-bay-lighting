@@ -1,14 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { BookingForm, BookingList } from '@/components';
+import { BookingForm, BookingList, LightCard } from '@/components';
 import { useBays } from '@/hooks/useBooking';
+import { useMqtt } from '@/contexts/MqttContext';
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const { data: bays = [], isLoading } = useBays();
+  const { lastStatus } = useMqtt();
 
   const activeBays = bays.filter((b) => b.isActive).length;
+
+  const bayConfig = [
+    { bayId: 'bay-01' as const, bayName: 'Bay 01', gpioPin: 4 },
+    { bayId: 'bay-02' as const, bayName: 'Bay 02', gpioPin: 5 },
+    { bayId: 'bay-03' as const, bayName: 'Bay 03', gpioPin: 6 },
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
@@ -38,6 +46,15 @@ export default function Dashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             <span className="font-medium">Dashboard</span>
+          </a>
+          <a
+            href="/monitoring"
+            className="group flex items-center px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-800/50 transition-all hover:scale-[1.02]"
+          >
+            <svg className="w-5 h-5 mr-3 text-zinc-600 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span className="font-medium">Monitoring</span>
           </a>
           <a
             href="/docs"
@@ -71,6 +88,21 @@ export default function Dashboard() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
+          <div className="mb-8">
+            <h3 className="text-xl font-bold text-zinc-100 mb-4">Light Controls</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {bayConfig.map((bay) => (
+                <LightCard
+                  key={bay.bayId}
+                  bayId={bay.bayId}
+                  bayName={bay.bayName}
+                  gpioPin={bay.gpioPin}
+                  isActive={false}
+                />
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="group bg-zinc-900/60 backdrop-blur-md rounded-2xl p-6 border border-zinc-800 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all hover:scale-[1.02]">
               <div className="flex items-center justify-between">

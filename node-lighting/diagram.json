@@ -18,14 +18,14 @@
       "id": "led1",
       "top": 207.6,
       "left": 627.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "red" }
     },
     {
       "type": "wokwi-led",
       "id": "led2",
       "top": 207.6,
       "left": 579.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "red" }
     },
     {
       "type": "wokwi-resistor",
@@ -72,30 +72,30 @@
     {
       "type": "wokwi-led",
       "id": "led3",
-      "top": 303.6,
+      "top": 294,
       "left": 579.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "yellow" }
     },
     {
       "type": "wokwi-led",
       "id": "led4",
-      "top": 303.6,
+      "top": 294,
       "left": 627.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "yellow" }
     },
     {
       "type": "wokwi-led",
       "id": "led5",
       "top": 380.4,
       "left": 579.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "limegreen" }
     },
     {
       "type": "wokwi-led",
       "id": "led6",
       "top": 380.4,
       "left": 627.8,
-      "attrs": { "color": "white" }
+      "attrs": { "color": "limegreen" }
     },
     {
       "type": "wokwi-text",

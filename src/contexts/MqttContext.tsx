@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { mqttService } from '@/lib/mqtt/service';
-import { BayStatus, BookingEvent } from '@/lib/mqtt/config';
+import { BookingEvent } from '@/lib/mqtt/config';
 
 interface MqttContextType {
   connected: boolean;
-  lastStatus: BayStatus | null;
+  lastStatus: any | null;
   publishBooking: (event: BookingEvent) => void;
 }
 
@@ -14,7 +14,7 @@ const MqttContext = createContext<MqttContextType | undefined>(undefined);
 
 export function MqttProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
-  const [lastStatus, setLastStatus] = useState<BayStatus | null>(null);
+  const [lastStatus, setLastStatus] = useState<any | null>(null);
 
   useEffect(() => {
     mqttService.connect();
@@ -22,6 +22,7 @@ export function MqttProvider({ children }: { children: ReactNode }) {
     const unsubscribeStatus = mqttService.onStatusUpdate((status) => {
       setLastStatus(status);
       setConnected(true);
+      console.log('MQTT Status Update:', status);
     });
 
     const unsubscribeBooking = mqttService.onBookingEvent(() => {

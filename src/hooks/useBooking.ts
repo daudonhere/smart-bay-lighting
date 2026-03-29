@@ -12,17 +12,6 @@ export function useBookings() {
   });
 }
 
-export function useBooking(id: string) {
-  return useQuery({
-    queryKey: ['booking', id],
-    queryFn: async () => {
-      const response = await bookingApi.getById(id);
-      return response.data;
-    },
-    enabled: !!id,
-  });
-}
-
 export function useBays() {
   return useQuery({
     queryKey: ['bays'],

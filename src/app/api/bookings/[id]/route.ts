@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UpdateBookingDto } from '@/types/booking';
-import { mqttService } from '@/lib/mqtt/service';
-
-mqttService.connect();
+import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +11,6 @@ export async function GET(request: NextRequest) {
     if (id) {
       const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { bay: true },
       });
 
       if (!booking) {
@@ -26,7 +23,7 @@ export async function GET(request: NextRequest) {
       const eventResponse = {
         event: 'booking_started' as const,
         booking_id: booking.id,
-        bay_id: booking.bay.name,
+        bay_id: booking.bayId,
         customer: booking.customerName,
         start_time: booking.startTime.toISOString(),
         end_time: booking.endTime.toISOString(),
@@ -39,14 +36,13 @@ export async function GET(request: NextRequest) {
     }
 
     const bookings = await prisma.booking.findMany({
-      include: { bay: true },
       orderBy: { startTime: 'desc' },
     });
 
     const formattedBookings = bookings.map((booking) => ({
       event: 'booking_started',
       booking_id: booking.id,
-      bay_id: booking.bay.name,
+      bay_id: booking.bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
@@ -91,7 +87,6 @@ export async function PUT(request: NextRequest) {
     const booking = await prisma.booking.update({
       where: { id },
       data,
-      include: { bay: true },
     });
 
     let event: 'booking_started' | 'booking_ended' | 'booking_extended' = 'booking_started';
@@ -104,14 +99,13 @@ export async function PUT(request: NextRequest) {
     const eventResponse = {
       event,
       booking_id: booking.id,
-      bay_id: booking.bay.name,
+      bay_id: booking.bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
     };
 
-    // Publish to MQTT for ESP32
-    mqttService.publishBooking(eventResponse);
+    mqttBridgeService.publishBooking(eventResponse).catch(console.error);
 
     return NextResponse.json({
       success: true,
@@ -139,7 +133,6 @@ export async function DELETE(request: NextRequest) {
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { bay: true },
     });
 
     if (!booking) {
@@ -156,14 +149,13 @@ export async function DELETE(request: NextRequest) {
     const eventResponse = {
       event: 'booking_ended' as const,
       booking_id: booking.id,
-      bay_id: booking.bay.name,
+      bay_id: booking.bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
     };
 
-    // Publish to MQTT for ESP32
-    mqttService.publishBooking(eventResponse);
+    mqttBridgeService.publishBooking(eventResponse).catch(console.error);
 
     return NextResponse.json({
       success: true,

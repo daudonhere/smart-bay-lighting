@@ -2,17 +2,59 @@
 
 import { useEffect, useState } from 'react';
 import { useMqtt } from '@/contexts/MqttContext';
-import { BayStatus, RelayStatus } from '@/lib/mqtt/config';
+import { RelayStatus } from '@/lib/mqtt/config';
+
+interface MonitoringStatus {
+  result?: {
+    success: boolean;
+    data: Array<{
+      bay_id?: string;
+      active?: boolean;
+      event?: string;
+      booking_id?: string;
+      customer?: string;
+      start_time?: string;
+      end_time?: string;
+    } | null>;
+    count: number;
+  };
+}
 
 export default function MonitoringPage() {
   const { connected, lastStatus } = useMqtt();
-  const [status, setStatus] = useState<BayStatus | null>(null);
+  const [status, setStatus] = useState<MonitoringStatus | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+
+  const defaultBays: RelayStatus[] = [
+    { bay_id: 'bay-01', relay_pin: 4, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
+    { bay_id: 'bay-02', relay_pin: 5, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
+    { bay_id: 'bay-03', relay_pin: 6, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
+  ];
+
+  const [bays, setBays] = useState<RelayStatus[]>(defaultBays);
 
   useEffect(() => {
     if (lastStatus) {
-      setStatus(lastStatus);
+      setStatus(lastStatus as any);
       setLastUpdate(new Date().toLocaleTimeString());
+      
+      if (lastStatus.result?.data) {
+        const activeBookings = lastStatus.result.data.filter((item): item is NonNullable<typeof item> => item !== null && item.bay_id !== undefined);
+        
+        const bayData: RelayStatus[] = [...defaultBays];
+        
+        activeBookings.forEach((booking) => {
+          const bayIndex = bayData.findIndex(b => b.bay_id === booking.bay_id);
+          if (bayIndex >= 0) {
+            bayData[bayIndex].active = true;
+            bayData[bayIndex].lamps.lamp_1 = true;
+            bayData[bayIndex].lamps.lamp_2 = true;
+            bayData[bayIndex].end_time = booking.end_time || null;
+          }
+        });
+        
+        setBays(bayData);
+      }
     }
   }, [lastStatus]);
 
@@ -84,29 +126,29 @@ export default function MonitoringPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
-          {!status ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-zinc-800 border-t-blue-500 mb-4"></div>
-                <p className="text-zinc-500">Waiting for device...</p>
-              </div>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {bays.map((bay) => (
+                <BayCard key={bay.bay_id} bay={bay} />
+              ))}
             </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {status.bays.map((bay) => (
-                  <BayCard key={bay.bay_id} bay={bay} />
-                ))}
-              </div>
 
-              <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl border border-zinc-800 p-6">
-                <h3 className="text-lg font-bold text-zinc-100 mb-4">Raw Device Data</h3>
-                <pre className="bg-zinc-950 text-zinc-100 rounded-xl p-4 text-xs overflow-auto max-h-96 font-mono border border-zinc-800">
-                  {JSON.stringify(status, null, 2)}
-                </pre>
+            <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl border border-zinc-800 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-zinc-100">Device Status</h3>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
+                  <span className="text-sm text-zinc-400">{connected ? 'Connected to ESP32' : 'Waiting for device...'}</span>
+                </div>
               </div>
+              {lastUpdate && (
+                <p className="text-sm text-zinc-500 mb-4">Last update: {lastUpdate}</p>
+              )}
+              <pre className="bg-zinc-950 text-zinc-100 rounded-xl p-4 text-xs overflow-auto max-h-96 font-mono border border-zinc-800">
+                {JSON.stringify(status || { message: 'Waiting for MQTT data from ESP32...' }, null, 2)}
+              </pre>
             </div>
-          )}
+          </div>
         </main>
       </div>
     </div>

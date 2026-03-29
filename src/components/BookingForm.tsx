@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useBays, useCreateBooking } from '@/hooks/useBooking';
 
 interface BookingFormProps {
@@ -9,15 +9,21 @@ interface BookingFormProps {
 }
 
 export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
-  const { data: bays = [] } = useBays();
+  const { data: bays = [], isLoading } = useBays();
   const createBooking = useCreateBooking();
 
   const [formData, setFormData] = useState({
-    bayId: '',
+    bayId: bays[0]?.id || '',
     customerName: '',
     startTime: '',
     endTime: '',
   });
+
+  useEffect(() => {
+    if (bays.length > 0 && !formData.bayId) {
+      setFormData(prev => ({ ...prev, bayId: bays[0].id }));
+    }
+  }, [bays]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +43,19 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
           <select
             value={formData.bayId}
             onChange={(e) => setFormData({ ...formData, bayId: e.target.value })}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all disabled:opacity-50"
             required
+            disabled={isLoading || bays.length === 0}
           >
-            <option value="">Select a bay</option>
-            {bays.map((bay) => (
-              <option key={bay.id} value={bay.id}>
-                {bay.name}
-              </option>
-            ))}
+            {isLoading ? (
+              <option>Loading bays...</option>
+            ) : (
+              bays.map((bay) => (
+                <option key={bay.id} value={bay.id} disabled={!bay.isActive}>
+                  {bay.name} {!bay.isActive && '(Disabled)'}
+                </option>
+              ))
+            )}
           </select>
         </div>
 

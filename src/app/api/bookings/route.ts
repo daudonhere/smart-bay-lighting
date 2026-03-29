@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { CreateBookingDto } from '@/types/booking';
-import { mqttService } from '@/lib/mqtt/service';
-
-mqttService.connect();
+import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
-      include: { bay: true },
       orderBy: { startTime: 'desc' },
     });
 
     const formattedBookings = bookings.map((booking) => ({
       event: 'booking_started',
       booking_id: booking.id,
-      bay_id: booking.bay.name,
+      bay_id: booking.bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
@@ -37,8 +34,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateBookingDto = await request.json();
-
     const { bayId, customerName, startTime, endTime } = body;
+
+    const VALID_BAYS = ['bay-01', 'bay-02', 'bay-03'];
 
     if (!bayId || !customerName || !startTime || !endTime) {
       return NextResponse.json(
@@ -47,21 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bay = await prisma.bay.findUnique({
-      where: { id: bayId },
-    });
-
-    if (!bay) {
+    if (!VALID_BAYS.includes(bayId)) {
       return NextResponse.json(
         { success: false, error: 'Bay not found' },
         { status: 404 }
-      );
-    }
-
-    if (!bay.isActive) {
-      return NextResponse.json(
-        { success: false, error: 'Bay is not active' },
-        { status: 400 }
       );
     }
 
@@ -97,28 +84,30 @@ export async function POST(request: NextRequest) {
         endTime: new Date(endTime),
         status: 'active',
       },
-      include: { bay: true },
     });
 
     const eventResponse = {
       event: 'booking_started' as const,
       booking_id: booking.id,
-      bay_id: booking.bay.name,
+      bay_id: bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
     };
 
-    // Publish to MQTT for ESP32
-    mqttService.publishBooking(eventResponse);
+    // Publish to MQTT (non-blocking, don't fail request if MQTT fails)
+    mqttBridgeService.publishBooking(eventResponse)
+      .then(() => console.log('[Booking] Published to MQTT'))
+      .catch((err) => console.error('[Booking] MQTT publish failed:', err.message));
 
     return NextResponse.json({
       success: true,
       data: eventResponse,
     }, { status: 201 });
-  } catch {
+  } catch (err: any) {
+    console.error('[Booking] Create failed:', err.message);
     return NextResponse.json(
-      { success: false, error: 'Failed to create booking' },
+      { success: false, error: err.message || 'Failed to create booking' },
       { status: 500 }
     );
   }
