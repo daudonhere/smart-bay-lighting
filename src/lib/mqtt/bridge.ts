@@ -23,7 +23,12 @@ class MqttBridgeService {
         this.client.on('connect', () => {
           console.log('[MQTT Bridge] Connected to broker');
           this.connected = true;
+          this.subscribe();
           resolve();
+        });
+
+        this.client.on('message', (topic, message) => {
+          this.handleMessage(topic, message.toString());
         });
 
         this.client.on('error', (err) => {
@@ -42,6 +47,35 @@ class MqttBridgeService {
     });
 
     return this.connectPromise;
+  }
+
+  private subscribe() {
+    if (!this.client) return;
+
+    this.client.subscribe('smart-bay/device-info', (err) => {
+      if (!err) {
+        console.log('[MQTT Bridge] Subscribed to smart-bay/device-info');
+      }
+    });
+  }
+
+  private async handleMessage(topic: string, message: string) {
+    if (topic === 'smart-bay/device-info') {
+      try {
+        const data = JSON.parse(message);
+        console.log('[MQTT Bridge] Received device info:', data);
+
+        await fetch('http://localhost:3000/api/device-sync', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        console.log('[MQTT Bridge] Device info synced to database');
+      } catch (err) {
+        console.error('[MQTT Bridge] Failed to process device info:', err);
+      }
+    }
   }
 
   async publishBooking(event: {

@@ -4,9 +4,21 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { mqttService } from '@/lib/mqtt/service';
 import { BookingEvent } from '@/lib/mqtt/config';
 
+interface DeviceInfo {
+  device_id: string;
+  device_type: string;
+  firmware_version: string;
+  bays: Array<{
+    bay_id: string;
+    relay_pin: number;
+    name: string;
+  }>;
+}
+
 interface MqttContextType {
   connected: boolean;
   lastStatus: any | null;
+  deviceInfo: DeviceInfo | null;
   publishBooking: (event: BookingEvent) => void;
 }
 
@@ -15,6 +27,7 @@ const MqttContext = createContext<MqttContextType | undefined>(undefined);
 export function MqttProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [lastStatus, setLastStatus] = useState<any | null>(null);
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
 
   useEffect(() => {
     mqttService.connect();
@@ -29,9 +42,16 @@ export function MqttProvider({ children }: { children: ReactNode }) {
       setConnected(true);
     });
 
+    const unsubscribeDeviceInfo = mqttService.onDeviceInfo((info) => {
+      setDeviceInfo(info);
+      setConnected(true);
+      console.log('MQTT Device Info:', info);
+    });
+
     return () => {
       unsubscribeStatus();
       unsubscribeBooking();
+      unsubscribeDeviceInfo();
     };
   }, []);
 
@@ -40,7 +60,7 @@ export function MqttProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <MqttContext.Provider value={{ connected, lastStatus, publishBooking }}>
+    <MqttContext.Provider value={{ connected, lastStatus, deviceInfo, publishBooking }}>
       {children}
     </MqttContext.Provider>
   );

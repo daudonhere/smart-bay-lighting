@@ -1,10 +1,22 @@
 import mqtt, { MqttClient } from 'mqtt';
 import { MQTT_CONFIG, BookingEvent, BayStatus, MqttCommand } from './config';
 
+interface DeviceInfo {
+  device_id: string;
+  device_type: string;
+  firmware_version: string;
+  bays: Array<{
+    bay_id: string;
+    relay_pin: number;
+    name: string;
+  }>;
+}
+
 class MqttService {
   private client: MqttClient | null = null;
   private statusListeners: ((status: BayStatus) => void)[] = [];
   private bookingListeners: ((event: BookingEvent) => void)[] = [];
+  private deviceInfoListeners: ((info: DeviceInfo) => void)[] = [];
   private connected: boolean = false;
 
   connect() {
@@ -51,6 +63,10 @@ class MqttService {
     this.client.subscribe(MQTT_CONFIG.topics.booking, (err) => {
       if (!err) console.log('Subscribed to booking topic');
     });
+
+    this.client.subscribe('smart-bay/device-info', (err) => {
+      if (!err) console.log('Subscribed to device-info topic');
+    });
   }
 
   private handleMessage(topic: string, message: string) {
@@ -61,6 +77,8 @@ class MqttService {
         this.statusListeners.forEach((cb) => cb(data));
       } else if (topic === MQTT_CONFIG.topics.booking) {
         this.bookingListeners.forEach((cb) => cb(data));
+      } else if (topic === 'smart-bay/device-info') {
+        this.deviceInfoListeners.forEach((cb) => cb(data));
       }
     } catch (err) {
       console.error('Failed to parse MQTT message:', err);
@@ -101,6 +119,13 @@ class MqttService {
     this.bookingListeners.push(callback);
     return () => {
       this.bookingListeners = this.bookingListeners.filter((cb) => cb !== callback);
+    };
+  }
+
+  onDeviceInfo(callback: (info: DeviceInfo) => void) {
+    this.deviceInfoListeners.push(callback);
+    return () => {
+      this.deviceInfoListeners = this.deviceInfoListeners.filter((cb) => cb !== callback);
     };
   }
 

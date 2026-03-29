@@ -5,18 +5,55 @@ import { useMqtt } from '@/contexts/MqttContext';
 import { useMqttCommand } from '@/hooks/useMqttCommand';
 import { RelayStatus } from '@/lib/mqtt/config';
 import { Sidebar } from '@/components';
+import { api } from '@/lib/api';
 
 export default function MonitoringPage() {
-  const { connected, lastStatus } = useMqtt();
+  const { connected, lastStatus, deviceInfo } = useMqtt();
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [bays, setBays] = useState<RelayStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
-  const defaultBays: RelayStatus[] = [
-    { bay_id: 'bay-01', relay_pin: 4, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
-    { bay_id: 'bay-02', relay_pin: 5, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
-    { bay_id: 'bay-03', relay_pin: 6, active: false, lamps: { lamp_1: false, lamp_2: false }, end_time: null },
-  ];
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  const [bays, setBays] = useState<RelayStatus[]>(defaultBays);
+  // Load bays from database on mount
+  useEffect(() => {
+    async function loadBays() {
+      try {
+        const response = await api.get('/bays');
+        const bayData: RelayStatus[] = response.data.data.map((bay: any) => ({
+          bay_id: bay.name,
+          relay_pin: 0,
+          active: false,
+          lamps: { lamp_1: false, lamp_2: false },
+          end_time: null,
+        }));
+        setBays(bayData);
+      } catch (err) {
+        console.error('Failed to load bays:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadBays();
+  }, []);
+
+  // Update bays if deviceInfo received from MQTT
+  useEffect(() => {
+    if (deviceInfo?.bays) {
+      const bayData: RelayStatus[] = deviceInfo.bays.map((bay) => ({
+        bay_id: bay.bay_id,
+        relay_pin: bay.relay_pin,
+        active: false,
+        lamps: { lamp_1: false, lamp_2: false },
+        end_time: null,
+      }));
+      setBays(bayData);
+    }
+  }, [deviceInfo]);
 
   useEffect(() => {
     if (connected) {
@@ -28,25 +65,26 @@ export default function MonitoringPage() {
     if (lastStatus) {
       setLastUpdate(new Date().toLocaleTimeString());
 
-      if (lastStatus.result?.data) {
+      if (lastStatus.result?.data && bays.length > 0) {
         const activeBookings = lastStatus.result.data.filter((item): item is NonNullable<typeof item> => item !== null && item.bay_id !== undefined);
 
-        const bayData: RelayStatus[] = [...defaultBays];
-
-        activeBookings.forEach((booking) => {
-          const bayIndex = bayData.findIndex(b => b.bay_id === booking.bay_id);
-          if (bayIndex >= 0) {
-            bayData[bayIndex].active = true;
-            bayData[bayIndex].lamps.lamp_1 = true;
-            bayData[bayIndex].lamps.lamp_2 = true;
-            bayData[bayIndex].end_time = booking.end_time || null;
+        const bayData: RelayStatus[] = bays.map((bay) => {
+          const activeBooking = activeBookings.find((b) => b.bay_id === bay.bay_id);
+          if (activeBooking) {
+            return {
+              ...bay,
+              active: true,
+              lamps: { lamp_1: true, lamp_2: true },
+              end_time: activeBooking.end_time || null,
+            };
           }
+          return bay;
         });
 
         setBays(bayData);
       }
     }
-  }, [lastStatus]);
+  }, [lastStatus, bays.length]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
@@ -57,7 +95,15 @@ export default function MonitoringPage() {
           <div className="px-8 py-5 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-zinc-100">Device Monitoring</h2>
-              <p className="text-sm text-zinc-500 mt-1">Real-time relay & GPIO status from ESP32</p>
+              <p className="text-sm text-zinc-500 mt-1">
+                {!isMounted || isLoading
+                  ? 'Real-time relay & GPIO status from ESP32'
+                  : deviceInfo?.bays
+                    ? `${deviceInfo.bays.length} bay${deviceInfo.bays.length > 1 ? 's' : ''} connected`
+                    : bays.length > 0
+                      ? `${bays.length} bay${bays.length > 1 ? 's' : ''} from database`
+                      : 'No bays available'}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -73,11 +119,37 @@ export default function MonitoringPage() {
 
         <main className="flex-1 overflow-y-auto p-8">
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {bays.map((bay) => (
-                <BayCard key={bay.bay_id} bay={bay} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <svg className="animate-spin w-12 h-12 mx-auto text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="text-zinc-400 mt-4">Loading bays...</p>
+                </div>
+              </div>
+            ) : bays.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <svg className="w-16 h-16 mx-auto text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <p className="text-zinc-400 text-lg font-medium">No bays available</p>
+                  <p className="text-zinc-500 text-sm mt-2">Connect ESP32 to sync bays automatically</p>
+                </div>
+              </div>
+            ) : (
+              <div className={`grid gap-6 ${
+                bays.length === 1 ? 'grid-cols-1' :
+                bays.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                'grid-cols-1 md:grid-cols-3'
+              }`}>
+                {bays.map((bay) => (
+                  <BayCard key={bay.bay_id} bay={bay} />
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>
