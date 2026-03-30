@@ -3,126 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { UpdateBookingDto } from '@/types/booking';
 import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
-
-    if (id) {
-      const booking = await prisma.booking.findUnique({
-        where: { id },
-      });
-
-      if (!booking) {
-        return NextResponse.json(
-          { success: false, error: 'Booking not found' },
-          { status: 404 }
-        );
-      }
-
-      const eventResponse = {
-        event: 'booking_started' as const,
-        booking_id: booking.id,
-        bay_id: booking.bayId,
-        customer: booking.customerName,
-        start_time: booking.startTime.toISOString(),
-        end_time: booking.endTime.toISOString(),
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: eventResponse,
-      });
-    }
-
-    const bookings = await prisma.booking.findMany({
-      orderBy: { startTime: 'desc' },
-    });
-
-    const formattedBookings = bookings.map((booking) => ({
-      event: 'booking_started',
-      booking_id: booking.id,
-      bay_id: booking.bayId,
-      customer: booking.customerName,
-      start_time: booking.startTime.toISOString(),
-      end_time: booking.endTime.toISOString(),
-    }));
-
-    return NextResponse.json({
-      success: true,
-      data: formattedBookings,
-      count: formattedBookings.length,
-    });
-  } catch {
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch bookings' },
-      { status: 500 }
-    );
-  }
+interface BookingEvent {
+  event: 'booking_extended';
+  booking_id: string;
+  bay_id: string;
+  customer: string;
+  start_time: string;
+  end_time: string;
 }
 
-export async function PUT(request: NextRequest) {
+export async function PATCH(request: NextRequest) {
   try {
     const body: UpdateBookingDto & { id: string } = await request.json();
-    const { id, ...data } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Booking ID required' },
-        { status: 400 }
-      );
-    }
-
-    const existing = await prisma.booking.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Booking not found' },
-        { status: 404 }
-      );
-    }
-
-    const booking = await prisma.booking.update({
-      where: { id },
-      data,
-    });
-
-    let event: 'booking_started' | 'booking_ended' | 'booking_extended' = 'booking_started';
-    if (data.status === 'completed' || data.status === 'cancelled') {
-      event = 'booking_ended';
-    } else if (data.endTime && data.endTime !== existing.endTime.toISOString()) {
-      event = 'booking_extended';
-    }
-
-    const eventResponse = {
-      event,
-      booking_id: booking.id,
-      bay_id: booking.bayId,
-      customer: booking.customerName,
-      start_time: booking.startTime.toISOString(),
-      end_time: booking.endTime.toISOString(),
-    };
-
-    mqttBridgeService.publishBooking(eventResponse).catch(console.error);
-
-    return NextResponse.json({
-      success: true,
-      data: eventResponse,
-    });
-  } catch {
-    return NextResponse.json(
-      { success: false, error: 'Failed to update booking' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
+    const { id, endTime } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -142,28 +35,60 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.booking.delete({
-      where: { id },
-    });
+    if (booking.status !== 'started' && booking.status !== 'extended') {
+      return NextResponse.json(
+        { success: false, error: 'Can only extend active bookings' },
+        { status: 400 }
+      );
+    }
 
-    const eventResponse = {
-      event: 'booking_ended' as const,
+    const now = new Date().getTime();
+    const currentEndTime = new Date(booking.endTime).getTime();
+    const fiveMinutes = 5 * 60 * 1000;
+
+    if (currentEndTime - now < fiveMinutes) {
+      return NextResponse.json(
+        { success: false, error: 'Cannot extend: less than 5 minutes before end time' },
+        { status: 400 }
+      );
+    }
+
+    const newEndTime = endTime ? new Date(endTime) : new Date(currentEndTime + 3600000);
+
+    const eventResponse: BookingEvent = {
+      event: 'booking_extended',
       booking_id: booking.id,
       bay_id: booking.bayId,
       customer: booking.customerName,
       start_time: booking.startTime.toISOString(),
-      end_time: booking.endTime.toISOString(),
+      end_time: newEndTime.toISOString(),
     };
 
-    mqttBridgeService.publishBooking(eventResponse).catch(console.error);
+    await prisma.booking.update({
+      where: { id },
+      data: {
+        endTime: newEndTime,
+        status: 'extended',
+      },
+    });
+
+    await prisma.bay.update({
+      where: { id: booking.bayId },
+      data: {
+        isActive: false,
+      },
+    });
+
+    await mqttBridgeService.publishBooking(eventResponse);
 
     return NextResponse.json({
       success: true,
+      message: 'Booking extended',
       data: eventResponse,
     });
   } catch {
     return NextResponse.json(
-      { success: false, error: 'Failed to delete booking' },
+      { success: false, error: 'Failed to extend booking' },
       { status: 500 }
     );
   }

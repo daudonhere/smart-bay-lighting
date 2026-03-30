@@ -1,106 +1,100 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useBays, useCreateBooking } from '@/hooks/useBooking';
+import { DateTimePicker, BaySelector } from '.';
 
 interface BookingFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
+interface Bay {
+  id: string;
+  isActive: boolean;
+}
+
 export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
-  const { data: bays = [], isLoading } = useBays();
+  const { data: baysData = [] } = useBays();
   const createBooking = useCreateBooking();
 
-  const [formData, setFormData] = useState({
-    bayId: bays[0]?.id || '',
-    customerName: '',
-    startTime: '',
-    endTime: '',
-  });
+  const bays: Bay[] = baysData.map((b: { id: string; isActive: boolean }) => ({
+    id: b.id,
+    isActive: b.isActive,
+  }));
 
-  useEffect(() => {
-    if (bays.length > 0 && !formData.bayId) {
-      setFormData(prev => ({ ...prev, bayId: bays[0].id }));
-    }
-  }, [bays]);
+  const [selectedBay, setSelectedBay] = useState<string>('');
+  const [customerName, setCustomerName] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+
+  const minDateTime = new Date();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createBooking.mutateAsync(formData, {
+    if (!selectedBay || !customerName || !startTime || !endTime) {
+      return;
+    }
+
+    await createBooking.mutateAsync({
+      bayId: selectedBay,
+      customerName,
+      startTime,
+      endTime,
+    }, {
       onSuccess: () => {
-        setFormData({ bayId: '', customerName: '', startTime: '', endTime: '' });
+        setSelectedBay('');
+        setCustomerName('');
+        setStartTime('');
+        setEndTime('');
         onSuccess?.();
       },
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid grid-cols-2 gap-5">
-        <div>
-          <label className="block text-sm font-semibold text-zinc-400 mb-2">Bay</label>
-          <select
-            value={formData.bayId}
-            onChange={(e) => setFormData({ ...formData, bayId: e.target.value })}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all disabled:opacity-50"
-            required
-            disabled={isLoading || bays.length === 0}
-          >
-            {isLoading ? (
-              <option>Loading bays...</option>
-            ) : (
-              bays.map((bay) => (
-                <option key={bay.id} value={bay.id} disabled={!bay.isActive}>
-                  {bay.name} {!bay.isActive && '(Disabled)'}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-zinc-400 mb-2">Customer Name</label>
-          <input
-            type="text"
-            value={formData.customerName}
-            onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-            placeholder="Enter customer name"
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
-            required
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label className="block text-sm font-semibold text-zinc-400 mb-3">Select Bay</label>
+        <BaySelector
+          bays={bays}
+          selectedBay={selectedBay}
+          onSelect={setSelectedBay}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
-        <div>
-          <label className="block text-sm font-semibold text-zinc-400 mb-2">Start Time</label>
-          <input
-            type="datetime-local"
-            value={formData.startTime}
-            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
-            required
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-semibold text-zinc-400 mb-2">Customer Name</label>
+        <input
+          type="text"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          placeholder="Enter customer name"
+          className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
+          required
+        />
+      </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-zinc-400 mb-2">End Time</label>
-          <input
-            type="datetime-local"
-            value={formData.endTime}
-            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
-            required
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <DateTimePicker
+          label="Start Time"
+          value={startTime}
+          onChange={setStartTime}
+          minDate={minDateTime}
+        />
+        <DateTimePicker
+          label="End Time"
+          value={endTime}
+          onChange={setEndTime}
+          minDate={startTime ? new Date(startTime) : minDateTime}
+        />
       </div>
 
       <div className="flex gap-3 pt-4">
         <button
           type="submit"
-          disabled={createBooking.isPending}
-          className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white font-semibold hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
+          disabled={createBooking.isPending || !selectedBay}
+          className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white font-semibold hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
         >
           {createBooking.isPending ? (
             <span className="flex items-center justify-center gap-2">

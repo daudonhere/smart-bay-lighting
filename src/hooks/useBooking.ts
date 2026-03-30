@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bookingApi, bayApi } from '@/lib/apiService';
-import { CreateBookingDto, UpdateBookingDto, BookingEventResponse, ApiResponse, Bay } from '@/types/booking';
+import { CreateBookingDto, UpdateBookingDto } from '@/types/booking';
 
 export function useBookings() {
   return useQuery({
@@ -9,6 +9,8 @@ export function useBookings() {
       const response = await bookingApi.getAll();
       return response.data || [];
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
@@ -30,8 +32,8 @@ export function useCreateBooking() {
       const response = await bookingApi.create(data);
       return response.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 }

@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Booking, Bay, CreateBookingDto, UpdateBookingDto, BookingEventResponse, ApiResponse } from '@/types/booking';
+import { Bay, CreateBookingDto, UpdateBookingDto, BookingEventResponse, ApiResponse } from '@/types/booking';
 
 export const bookingApi = {
   getAll: async () => {
@@ -18,7 +18,7 @@ export const bookingApi = {
   },
 
   update: async (id: string, data: UpdateBookingDto) => {
-    const response = await api.put<ApiResponse<BookingEventResponse>>('/bookings', { id, ...data });
+    const response = await api.patch<ApiResponse<BookingEventResponse>>('/bookings', { id, ...data });
     return response.data;
   },
 

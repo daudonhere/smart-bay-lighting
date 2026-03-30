@@ -11,7 +11,7 @@ export interface Booking {
 
 export interface Bay {
   id: string;
-  name: string;
+  relayPin?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -47,4 +47,15 @@ export interface ApiResponse<T> {
   count?: number;
   error?: string;
   message?: string;
+}
+
+export interface BayStatus {
+  bay_id: string;
+  relay_pin: number;
+  active: boolean;
+  lamps: {
+    lamp_1: boolean;
+    lamp_2: boolean;
+  };
+  end_time: string | null;
 }

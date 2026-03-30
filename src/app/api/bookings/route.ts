@@ -3,20 +3,42 @@ import { prisma } from '@/lib/prisma';
 import { CreateBookingDto } from '@/types/booking';
 import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
+interface BookingEvent {
+  event: 'booking_created' | 'booking_started' | 'booking_extended' | 'booking_ended';
+  booking_id: string;
+  bay_id: string;
+  customer: string;
+  start_time: string;
+  end_time: string;
+}
+
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
+      where: {
+        status: {
+          not: 'cancelled',
+        },
+      },
       orderBy: { startTime: 'desc' },
     });
 
-    const formattedBookings = bookings.map((booking) => ({
-      event: 'booking_started',
-      booking_id: booking.id,
-      bay_id: booking.bayId,
-      customer: booking.customerName,
-      start_time: booking.startTime.toISOString(),
-      end_time: booking.endTime.toISOString(),
-    }));
+    const formattedBookings = bookings.map((booking) => {
+      let event: BookingEvent['event'] = 'booking_created';
+      if (booking.status === 'started') event = 'booking_started';
+      else if (booking.status === 'extended') event = 'booking_extended';
+      else if (booking.status === 'ended') event = 'booking_ended';
+
+      return {
+        event,
+        booking_id: booking.id,
+        bay_id: booking.bayId,
+        customer: booking.customerName,
+        start_time: booking.startTime.toISOString(),
+        end_time: booking.endTime.toISOString(),
+        status: booking.status,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -36,8 +58,6 @@ export async function POST(request: NextRequest) {
     const body: CreateBookingDto = await request.json();
     const { bayId, customerName, startTime, endTime } = body;
 
-    const VALID_BAYS = ['bay-01', 'bay-02', 'bay-03'];
-
     if (!bayId || !customerName || !startTime || !endTime) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
@@ -45,7 +65,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!VALID_BAYS.includes(bayId)) {
+    const bayIdPattern = /^bay-\d{2}$/;
+    if (!bayIdPattern.test(bayId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid bay_id format. Use format: bay-01, bay-02, etc' },
+        { status: 400 }
+      );
+    }
+
+    const bay = await prisma.bay.findUnique({
+      where: { id: bayId },
+    });
+
+    if (!bay) {
       return NextResponse.json(
         { success: false, error: 'Bay not found' },
         { status: 404 }
@@ -55,7 +87,7 @@ export async function POST(request: NextRequest) {
     const existingBooking = await prisma.booking.findFirst({
       where: {
         bayId,
-        status: 'active',
+        status: { in: ['created', 'started', 'extended'] },
         OR: [
           {
             startTime: { lte: new Date(startTime) },
@@ -82,12 +114,16 @@ export async function POST(request: NextRequest) {
         customerName,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        status: 'active',
+        status: 'created',
       },
     });
 
-    const eventResponse = {
-      event: 'booking_started' as const,
+    const now = new Date().getTime();
+    const bookingStartTime = new Date(startTime).getTime();
+    const thirtySeconds = 30 * 1000;
+
+    const eventResponse: BookingEvent = {
+      event: 'booking_created',
       booking_id: booking.id,
       bay_id: bayId,
       customer: booking.customerName,
@@ -95,36 +131,93 @@ export async function POST(request: NextRequest) {
       end_time: booking.endTime.toISOString(),
     };
 
-    // Publish to MQTT (non-blocking, don't fail request if MQTT fails)
-    mqttBridgeService.publishBooking(eventResponse)
-      .then(() => console.log('[Booking] Published to MQTT'))
-      .catch((err) => console.error('[Booking] MQTT publish failed:', err.message));
+    if (bookingStartTime - now <= thirtySeconds) {
+      await prisma.bay.update({
+        where: { id: bayId },
+        data: {
+          isActive: true,
+        },
+      });
+      await mqttBridgeService.publishBooking({
+        ...eventResponse,
+        event: 'booking_started',
+      });
+    } else {
+      await mqttBridgeService.publishBooking(eventResponse);
+    }
 
     return NextResponse.json({
       success: true,
+      message: 'Booking created. Lamp will turn on 30 seconds before start time.',
       data: eventResponse,
     }, { status: 201 });
-  } catch (err: any) {
-    console.error('[Booking] Create failed:', err.message);
+  } catch {
     return NextResponse.json(
-      { success: false, error: err.message || 'Failed to create booking' },
+      { success: false, error: 'Failed to create booking' },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
-    await prisma.booking.deleteMany({});
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-    return NextResponse.json({
-      success: true,
-      message: 'All bookings deleted',
-      data: { deleted: true },
-    });
+    if (id) {
+      const booking = await prisma.booking.findUnique({
+        where: { id },
+      });
+
+      if (!booking) {
+        return NextResponse.json(
+          { success: false, error: 'Booking not found' },
+          { status: 404 }
+        );
+      }
+
+      const eventResponse: BookingEvent = {
+        event: 'booking_ended',
+        booking_id: booking.id,
+        bay_id: booking.bayId,
+        customer: booking.customerName,
+        start_time: booking.startTime.toISOString(),
+        end_time: booking.endTime.toISOString(),
+      };
+
+      await prisma.bay.update({
+        where: { id: booking.bayId },
+        data: {
+          isActive: true,
+        },
+      });
+
+      await prisma.booking.update({
+        where: { id },
+        data: {
+          status: 'cancelled',
+        },
+      });
+
+      await mqttBridgeService.publishBooking(eventResponse);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Booking cancelled',
+        data: eventResponse,
+      });
+    } else {
+      await prisma.booking.deleteMany({});
+
+      return NextResponse.json({
+        success: true,
+        message: 'All bookings deleted',
+        data: { deleted: true },
+      });
+    }
   } catch {
     return NextResponse.json(
-      { success: false, error: 'Failed to delete all bookings' },
+      { success: false, error: 'Failed to delete bookings' },
       { status: 500 }
     );
   }

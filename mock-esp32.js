@@ -11,8 +11,8 @@ const BAYS = {
   'bay-03': { relayPin: 6, active: false, endTime: null },
 };
 
-console.log('\n🔧 Mock ESP32 Simulator Starting...');
-console.log('📡 Connecting to MQTT broker:', MQTT_BROKER);
+console.log('\nMock ESP32 Simulator Starting...');
+console.log('Connecting to MQTT broker:', MQTT_BROKER);
 
 const client = mqtt.connect(MQTT_BROKER, {
   clientId: CLIENT_ID,
@@ -20,24 +20,22 @@ const client = mqtt.connect(MQTT_BROKER, {
 });
 
 client.on('connect', () => {
-  console.log('✅ MQTT Connected');
+  console.log('MQTT Connected');
   
   client.subscribe('smart-bay/booking', (err) => {
     if (!err) {
-      console.log('📥 Subscribed to: smart-bay/booking');
+      console.log('Subscribed to: smart-bay/booking');
     }
   });
   
   client.subscribe('smart-bay/command', (err) => {
     if (!err) {
-      console.log('📥 Subscribed to: smart-bay/command');
+      console.log('Subscribed to: smart-bay/command');
     }
   });
-  
-  // Publish initial status
+
   publishStatus();
-  
-  // Auto-publish status every 10 seconds
+
   setInterval(publishStatus, 10000);
 });
 
@@ -45,7 +43,7 @@ client.on('message', (topic, message) => {
   try {
     const data = JSON.parse(message.toString());
     
-    console.log('\n📨 Received on', topic + ':');
+    console.log('\nReceived on', topic + ':');
     console.log('   ', JSON.stringify(data, null, 2));
     
     if (topic === 'smart-bay/booking') {
@@ -54,28 +52,28 @@ client.on('message', (topic, message) => {
       handleCommand(data);
     }
   } catch (err) {
-    console.error('❌ Failed to parse message:', err.message);
+    console.error('Failed to parse message:', err.message);
   }
 });
 
 function handleBooking(data) {
-  const { event, bay_id, booking_id, end_time } = data;
-  
+  const { event, bay_id, booking_id } = data;
+
   if (!BAYS[bay_id]) {
-    console.log(`⚠️  Unknown bay: ${bay_id}`);
+    console.log(`Unknown bay: ${bay_id}`);
     return;
   }
   
   if (event === 'booking_started') {
     turnOnRelay(bay_id);
-    BAYS[bay_id].endTime = Date.now() + 3600000; // 1 hour
-    console.log(`📅 Booking ID: ${booking_id}`);
+    BAYS[bay_id].endTime = Date.now() + 3600000;
+    console.log(`Booking ID: ${booking_id}`);
   } else if (event === 'booking_ended') {
     turnOffRelay(bay_id);
     BAYS[bay_id].endTime = null;
   } else if (event === 'booking_extended') {
     BAYS[bay_id].endTime = Date.now() + 3600000;
-    console.log(`⏰ Booking extended`);
+    console.log(`Booking extended`);
   }
   
   publishStatus();
@@ -85,7 +83,7 @@ function handleCommand(data) {
   const { command, bay_id } = data;
   
   if (!bay_id || !BAYS[bay_id]) {
-    console.log(`⚠️  Invalid bay: ${bay_id}`);
+    console.log(`Invalid bay: ${bay_id}`);
     return;
   }
   
@@ -102,16 +100,16 @@ function handleCommand(data) {
 
 function turnOnRelay(bayId) {
   BAYS[bayId].active = true;
-  console.log(`\n💡 RELAY ON: ${bayId} (GPIO ${BAYS[bayId].relayPin})`);
-  console.log(`   🔴 LAMP 1: ON`);
-  console.log(`   🔴 LAMP 2: ON`);
+  console.log(`\nRELAY ON: ${bayId} (GPIO ${BAYS[bayId].relayPin})`);
+  console.log(`LAMP 1: ON`);
+  console.log(`LAMP 2: ON`);
 }
 
 function turnOffRelay(bayId) {
   BAYS[bayId].active = false;
-  console.log(`\n⚫ RELAY OFF: ${bayId} (GPIO ${BAYS[bayId].relayPin})`);
-  console.log(`   ⚫ LAMP 1: OFF`);
-  console.log(`   ⚫ LAMP 2: OFF`);
+  console.log(`\nRELAY OFF: ${bayId} (GPIO ${BAYS[bayId].relayPin})`);
+  console.log(`LAMP 1: OFF`);
+  console.log(`LAMP 2: OFF`);
 }
 
 function publishStatus() {
@@ -139,27 +137,26 @@ function publishStatus() {
   client.publish('smart-bay/status', JSON.stringify(status));
 }
 
-// Check timers every second
 setInterval(() => {
   const now = Date.now();
-  
-  Object.entries(BAYS).forEach(([bayId, bay]) => {
+
+  Object.entries(BAYS).forEach(([, bay]) => {
     if (bay.active && bay.endTime && now >= bay.endTime) {
-      console.log(`\n⏰ Timer EXPIRED: ${bayId}`);
-      turnOffRelay(bayId);
+      console.log(`\nTimer EXPIRED: ${bay.bayId}`);
+      turnOffRelay(bay.bayId);
       publishStatus();
     }
   });
 }, 1000);
 
 client.on('error', (err) => {
-  console.error('❌ MQTT Error:', err.message);
+  console.error('MQTT Error:', err.message);
 });
 
 client.on('close', () => {
-  console.log('🔌 MQTT Disconnected');
+  console.log('MQTT Disconnected');
 });
 
-console.log('\n🚀 Mock ESP32 Ready!');
-console.log('📊 Monitoring bookings...\n');
+console.log('\nMock ESP32 Ready!');
+console.log('Monitoring bookings...\n');
 console.log('─'.repeat(50));

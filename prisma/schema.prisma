@@ -8,23 +8,24 @@ datasource db {
 }
 
 model Bay {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  isActive  Boolean   @default(true)
+  id        String    @id
+  relayPin  Int       @default(0)
+  isActive  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
 
 model Booking {
-  id          String   @id @default(cuid())
-  bayId       String
+  id           String   @id @default(cuid())
+  bayId        String
   customerName String
-  startTime   DateTime
-  endTime     DateTime
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  startTime    DateTime
+  endTime      DateTime
+  status       String   @default("created") // created, started, extended, ended, cancelled
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([bayId])
   @@index([status])
+  @@index([startTime])
 }

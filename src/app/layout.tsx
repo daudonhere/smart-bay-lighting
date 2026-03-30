@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "@/lib/scheduler";
 import { ReactQueryProvider } from "@/lib/ReactQueryProvider";
 import { MqttProvider } from "@/contexts/MqttContext";
 

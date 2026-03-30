@@ -7,12 +7,20 @@ interface Endpoint {
   method: string;
   path: string;
   summary: string;
+  description?: string;
   body: Record<string, unknown> | null;
   note?: string;
   response?: {
     description: string;
     example: unknown;
   };
+}
+
+interface ResponseData {
+  status?: number;
+  data?: unknown;
+  error?: string;
+  time?: string;
 }
 
 interface EndpointCategory {
@@ -37,12 +45,12 @@ const endpointCategories: EndpointCategory[] = [
             success: true,
             data: [
               {
-                event: 'booking_started',
-                booking_id: 'cm3qk1234',
+                id: 'cm3qk1234',
                 bay_id: 'bay-01',
                 customer: 'John Doe',
                 start_time: '2026-03-28T10:00:00.000Z',
                 end_time: '2026-03-28T11:00:00.000Z',
+                status: 'created',
               },
             ],
             count: 1,
@@ -53,18 +61,20 @@ const endpointCategories: EndpointCategory[] = [
         method: 'POST',
         path: '/api/bookings',
         summary: 'Create booking',
+        description: 'Create new booking. Lamp will auto-turn-on 30 seconds before start_time via scheduler.',
         body: {
           bayId: 'bay-01',
           customerName: 'John Doe',
-          startTime: '2026-03-28T10:00',
-          endTime: '2026-03-28T11:00',
+          startTime: '2026-03-28T10:00:00',
+          endTime: '2026-03-28T11:00:00',
         },
         response: {
-          description: 'Returns booking event yang dikirim ke ESP32',
+          description: 'Returns booking_created event',
           example: {
             success: true,
+            message: 'Booking created. Lamp will turn on 30 seconds before start time.',
             data: {
-              event: 'booking_started',
+              event: 'booking_created',
               booking_id: 'cm3qk1234',
               bay_id: 'bay-01',
               customer: 'John Doe',
@@ -75,25 +85,27 @@ const endpointCategories: EndpointCategory[] = [
         },
       },
       {
-        method: 'PUT',
+        method: 'PATCH',
         path: '/api/bookings',
-        summary: 'Update booking',
+        summary: 'Extend booking',
+        description: 'Extend active booking by 1 hour or custom end time.',
         body: {
           id: 'cm3qk1234',
-          status: 'completed',
+          endTime: '2026-03-28T12:00:00',
         },
-        note: 'Include id dan field yang ingin diupdate (status: active/completed/cancelled, endTime, dll)',
+        note: 'Extend only allowed if > 5 minutes before end time. Will send booking_extended event to ESP32.',
         response: {
-          description: 'Returns updated booking event',
+          description: 'Returns booking_extended event',
           example: {
             success: true,
+            message: 'Booking extended',
             data: {
-              event: 'booking_ended',
+              event: 'booking_extended',
               booking_id: 'cm3qk1234',
               bay_id: 'bay-01',
               customer: 'John Doe',
               start_time: '2026-03-28T10:00:00.000Z',
-              end_time: '2026-03-28T11:00:00.000Z',
+              end_time: '2026-03-28T12:00:00.000Z',
             },
           },
         },
@@ -101,13 +113,14 @@ const endpointCategories: EndpointCategory[] = [
       {
         method: 'DELETE',
         path: '/api/bookings?id=',
-        summary: 'Delete booking by ID',
+        summary: 'Cancel booking',
         body: null,
-        note: 'Tambahkan booking ID setelah path (e.g., /api/bookings?id=cm3qk1234)',
+        note: 'Tambahkan booking ID setelah path (e.g., /api/bookings?id=cm3qk1234). Booking akan di-set status cancelled, tidak dihapus permanen.',
         response: {
-          description: 'Returns deleted booking event',
+          description: 'Returns booking_ended event',
           example: {
             success: true,
+            message: 'Booking cancelled',
             data: {
               event: 'booking_ended',
               booking_id: 'cm3qk1234',
@@ -136,8 +149,8 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'Device & Bay Management',
-    description: 'Endpoints untuk mengelola device ESP32 dan konfigurasi bay',
+    title: 'Bays Management',
+    description: 'Endpoints untuk mengelola bay',
     endpoints: [
       {
         method: 'GET',
@@ -150,9 +163,9 @@ const endpointCategories: EndpointCategory[] = [
             success: true,
             data: [
               {
-                id: 'cm3qk1234',
-                name: 'bay-01',
-                isActive: true,
+                id: 'bay-01',
+                relayPin: 4,
+                isActive: false,
                 createdAt: '2026-03-28T08:00:00.000Z',
                 updatedAt: '2026-03-28T08:00:00.000Z',
               },
@@ -166,13 +179,13 @@ const endpointCategories: EndpointCategory[] = [
         path: '/api/bays?id=',
         summary: 'Delete bay by ID',
         body: null,
-        note: 'Tambahkan bay ID setelah path (e.g., /api/bays?id=cm3qk1234)',
+        note: 'Tambahkan bay ID setelah path (e.g., /api/bays?id=bay-01)',
         response: {
           description: 'Returns confirmation of deletion',
           example: {
             success: true,
             message: "Bay 'bay-01' deleted",
-            data: { deleted: true, id: 'cm3qk1234', name: 'bay-01' },
+            data: { deleted: true, id: 'bay-01' },
           },
         },
       },
@@ -193,12 +206,12 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'MQTT Control',
+    title: 'Manual Control',
     description: 'Endpoints untuk kontrol manual device ESP32 via MQTT',
     endpoints: [
       {
         method: 'POST',
-        path: '/api/mqtt/command',
+        path: '/api/command',
         summary: 'Send MQTT command to ESP32',
         body: {
           command: 'turn_on',
@@ -220,13 +233,51 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'Device Auto-Sync',
-    description: 'Endpoint untuk auto-sync device ESP32 (dipanggil otomatis via MQTT)',
+    title: 'Device Sync',
+    description: 'Endpoints untuk sync device ESP32 (manual dan otomatis)',
     endpoints: [
       {
+        method: 'GET',
+        path: '/api/sync',
+        summary: 'Get device info from ESP32',
+        body: null,
+        note: 'Request device info dari ESP32 via MQTT. Timeout 5 detik. Include status booking aktif.',
+        response: {
+          description: 'Returns device info from ESP32 with booking status',
+          example: {
+            success: true,
+            data: [
+              {
+                id: 'bay-01',
+                relayPin: 4,
+                isActive: true,
+                hasActiveBooking: false,
+                currentBooking: null,
+                createdAt: '2026-03-29T15:45:04.690Z',
+                updatedAt: '2026-03-30T03:43:25.345Z',
+              },
+              {
+                id: 'bay-02',
+                relayPin: 5,
+                isActive: false,
+                hasActiveBooking: true,
+                currentBooking: {
+                  id: 'cm3qk1234',
+                  customerName: 'John Doe',
+                  endTime: '2026-03-30T12:00:00.000Z',
+                },
+                createdAt: '2026-03-29T15:45:04.892Z',
+                updatedAt: '2026-03-30T03:43:25.553Z',
+              },
+            ],
+            count: 3,
+          },
+        },
+      },
+      {
         method: 'PUT',
-        path: '/api/device-sync',
-        summary: 'Sync device info from ESP32',
+        path: '/api/sync',
+        summary: 'Sync device info to database',
         body: {
           device_id: 'esp32-abc123',
           device_type: 'Smart Bay Controller',
@@ -237,7 +288,7 @@ const endpointCategories: EndpointCategory[] = [
             { bay_id: 'bay-03', relay_pin: 6, name: 'bay-03' },
           ],
         },
-        note: 'Dipanggil otomatis via MQTT saat ESP32 connect. Melakukan upsert (update jika ada, create jika belum).',
+        note: 'Biasanya dipanggil otomatis via MQTT saat ESP32 connect. Akan set isActive: true untuk semua bays.',
         response: {
           description: 'Returns sync confirmation',
           example: {
@@ -323,6 +374,7 @@ export default function ApiDocs() {
   const methodColors: Record<string, string> = {
     get: 'bg-green-600 text-white',
     post: 'bg-yellow-600 text-white',
+    patch: 'bg-yellow-600 text-white',
     put: 'bg-yellow-600 text-white',
     delete: 'bg-red-600 text-white',
   };
@@ -341,7 +393,6 @@ export default function ApiDocs() {
 
         <main className="flex-1 overflow-y-auto p-8">
           <div className="space-y-6">
-            {/* Top: Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 border-b border-zinc-800">
               {endpointCategories.map((cat, idx) => (
                 <button
@@ -363,9 +414,7 @@ export default function ApiDocs() {
               ))}
             </div>
 
-            {/* Bottom: Endpoints (left) + Request Panel (right) */}
             <div className="flex flex-col lg:flex-row gap-6">
-              {/* Left: Endpoints List */}
               <div className="lg:w-96 flex-shrink-0 space-y-3">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600/50 to-purple-600/50 flex items-center justify-center border border-blue-500/30">
@@ -405,7 +454,6 @@ export default function ApiDocs() {
                 ))}
               </div>
 
-              {/* Right: Request & Response Panel */}
               <div className="flex-1 space-y-4" suppressHydrationWarning>
               {isMounted && (
                 <>

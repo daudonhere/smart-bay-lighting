@@ -20,10 +20,12 @@ export interface RelayStatus {
 }
 
 export interface BayStatus {
-  success: true;
-  timestamp: string;
-  device_id: string;
-  bays: RelayStatus[];
+  result: {
+    success: boolean;
+    message?: string;
+    data: Array<{ bay_id?: string } | null>;
+    count: number;
+  };
 }
 
 export interface BookingEvent {

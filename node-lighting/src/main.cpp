@@ -53,17 +53,14 @@ void connectWiFi() {
 void turnOnBay(Bay& bay) {
   digitalWrite(bay.relayPin, HIGH);
   bay.active = true;
-  bay.hasError = false;
   bay.lampOk = true;
   bay.endTime = millis() + 3600000;
-  Serial.printf("BAY %s: ON\n", bay.bayId);
 }
 
 void turnOffBay(Bay& bay) {
   digitalWrite(bay.relayPin, LOW);
   bay.active = false;
   bay.endTime = 0;
-  Serial.printf("BAY %s: OFF\n", bay.bayId);
 }
 
 void setErrorBay(Bay& bay) {
@@ -125,6 +122,42 @@ void publishDeviceInfo() {
   Serial.printf("Device info published\n");
 }
 
+void publishActiveBaysResponse() {
+  JsonDocument doc;
+  JsonObject result = doc["result"].to<JsonObject>();
+  result["success"] = true;
+
+  int activeCount = 0;
+  JsonArray baysArray = result["data"].to<JsonArray>();
+
+  for (int i = 0; i < 3; i++) {
+    if (bays[i].active) {
+      JsonObject bayObj = baysArray.add<JsonObject>();
+      bayObj["bay_id"] = bays[i].bayId;
+      activeCount++;
+    }
+  }
+
+  if (activeCount == 1) {
+    result["message"] = "1 Bay Active";
+  } else if (activeCount > 1) {
+    result["message"] = String(activeCount) + " Bays Active";
+  } else {
+    result["message"] = "No Bay Active";
+  }
+
+  result["count"] = activeCount;
+  result["error"] = nullptr;
+
+  char output[512];
+  serializeJson(doc, output);
+
+  Serial.println("\n[MQTT Response]:");
+  Serial.println(output);
+
+  client.publish(TOPIC_STATUS, output);
+}
+
 void publishStatus() {
   JsonDocument doc;
   JsonObject result = doc["result"].to<JsonObject>();
@@ -152,9 +185,11 @@ void publishStatus() {
         errorObj["message"] = "lamp at bay failured to turn on";
       }
     }
+    result["error"] = nullptr;
   } else {
     result["message"] = "All device ready";
-    result["data"] = JsonArray();
+    result["data"] = nullptr;
+    result["error"] = nullptr;
   }
 
   result["count"] = readyCount;
@@ -171,44 +206,63 @@ void publishStatus() {
 void callback(char* topic, byte* payload, unsigned int length) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload, length);
-  
+
   if (error) {
     Serial.println("Failed to parse JSON");
     return;
   }
-  
+
+  char jsonBuffer[512];
+  serializeJson(doc, jsonBuffer);
+  Serial.println("\n[MQTT Received]:");
+  Serial.print("Topic: ");
+  Serial.println(topic);
+  Serial.println("Payload:");
+  Serial.println(jsonBuffer);
+
   const char* bayId = doc["bay_id"];
-  
+  const char* event = doc["event"];
+
   if (strcmp(topic, TOPIC_BOOKING) == 0) {
-    const char* event = doc["event"];
-    
     bool bayFound = false;
     for (int i = 0; i < 3; i++) {
       if (strcmp(bays[i].bayId, bayId) == 0) {
         bayFound = true;
-        
+
         if (strcmp(event, "booking_started") == 0) {
           turnOnBay(bays[i]);
-          publishBookingResponse(doc.as<JsonVariant>());
+          Serial.println("[Event] Lamp ON 30s before booking");
         }
         else if (strcmp(event, "booking_ended") == 0) {
           turnOffBay(bays[i]);
+          Serial.println("[Event] Lamp OFF 30s after booking end");
         }
         else if (strcmp(event, "booking_extended") == 0) {
           bays[i].endTime = millis() + 3600000;
-          Serial.printf("BAY %s: EXTENDED\n", bays[i].bayId);
+          Serial.println("[Event] Booking extended");
+        }
+        else if (strcmp(event, "booking_created") == 0) {
+          Serial.println("[Event] Booking created (lamp will turn on at start time)");
         }
         break;
       }
     }
-    
+
     if (!bayFound) {
       Serial.printf("Unknown bay: %s\n", bayId);
     }
+
+    publishActiveBaysResponse();
   }
   else if (strcmp(topic, TOPIC_COMMAND) == 0) {
     const char* command = doc["command"];
-    
+
+    if (strcmp(command, "device_info_request") == 0) {
+      Serial.println("\n[Event] Device info requested");
+      publishDeviceInfo();
+      return;
+    }
+
     for (int i = 0; i < 3; i++) {
       if (strcmp(bays[i].bayId, bayId) == 0) {
         if (strcmp(command, "turn_on") == 0) {
@@ -219,11 +273,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
         }
         else if (strcmp(command, "reset_error") == 0) {
           bays[i].hasError = false;
-          Serial.printf("BAY %s: ERROR RESET\n", bays[i].bayId);
+          bays[i].lampOk = true;
         }
         break;
       }
     }
+
+    if (strcmp(command, "status_request") == 0) {
+      Serial.println("[Event] Status requested");
+    }
+
+    publishActiveBaysResponse();
   }
 }
 

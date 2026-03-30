@@ -30,7 +30,6 @@ class MqttService {
       });
 
       this.client.on('connect', () => {
-        console.log('MQTT Connected');
         this.connected = true;
         this.subscribe();
       });
@@ -39,17 +38,14 @@ class MqttService {
         this.handleMessage(topic, message.toString());
       });
 
-      this.client.on('error', (err) => {
-        console.error('MQTT Error:', err);
+      this.client.on('error', () => {
         this.connected = false;
       });
 
       this.client.on('close', () => {
-        console.log('MQTT Disconnected');
         this.connected = false;
       });
-    } catch (err) {
-      console.error('MQTT Connection failed:', err);
+    } catch {
     }
   }
 
@@ -57,15 +53,18 @@ class MqttService {
     if (!this.client) return;
 
     this.client.subscribe(MQTT_CONFIG.topics.status, (err) => {
-      if (!err) console.log('Subscribed to status topic');
+      if (!err) {
+      }
     });
 
     this.client.subscribe(MQTT_CONFIG.topics.booking, (err) => {
-      if (!err) console.log('Subscribed to booking topic');
+      if (!err) {
+      }
     });
 
     this.client.subscribe('smart-bay/device-info', (err) => {
-      if (!err) console.log('Subscribed to device-info topic');
+      if (!err) {
+      }
     });
   }
 
@@ -80,8 +79,7 @@ class MqttService {
       } else if (topic === 'smart-bay/device-info') {
         this.deviceInfoListeners.forEach((cb) => cb(data));
       }
-    } catch (err) {
-      console.error('Failed to parse MQTT message:', err);
+    } catch {
     }
   }
 
@@ -99,12 +97,12 @@ class MqttService {
 
   private publish(topic: string, data: unknown) {
     if (!this.client || !this.connected) {
-      console.warn('MQTT not connected, cannot publish');
       return;
     }
 
     this.client.publish(topic, JSON.stringify(data), { qos: 1 }, (err) => {
-      if (err) console.error('MQTT Publish error:', err);
+      if (err) {
+      }
     });
   }
 

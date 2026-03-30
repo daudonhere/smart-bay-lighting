@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { mqttService } from '@/lib/mqtt/service';
-import { BookingEvent } from '@/lib/mqtt/config';
+import { BookingEvent, BayStatus } from '@/lib/mqtt/config';
 
 interface DeviceInfo {
   device_id: string;
@@ -17,7 +17,7 @@ interface DeviceInfo {
 
 interface MqttContextType {
   connected: boolean;
-  lastStatus: any | null;
+  lastStatus: BayStatus | null;
   deviceInfo: DeviceInfo | null;
   publishBooking: (event: BookingEvent) => void;
 }
@@ -26,7 +26,7 @@ const MqttContext = createContext<MqttContextType | undefined>(undefined);
 
 export function MqttProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
-  const [lastStatus, setLastStatus] = useState<any | null>(null);
+  const [lastStatus, setLastStatus] = useState<BayStatus | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
 
   useEffect(() => {
@@ -35,7 +35,6 @@ export function MqttProvider({ children }: { children: ReactNode }) {
     const unsubscribeStatus = mqttService.onStatusUpdate((status) => {
       setLastStatus(status);
       setConnected(true);
-      console.log('MQTT Status Update:', status);
     });
 
     const unsubscribeBooking = mqttService.onBookingEvent(() => {
@@ -45,7 +44,6 @@ export function MqttProvider({ children }: { children: ReactNode }) {
     const unsubscribeDeviceInfo = mqttService.onDeviceInfo((info) => {
       setDeviceInfo(info);
       setConnected(true);
-      console.log('MQTT Device Info:', info);
     });
 
     return () => {
