@@ -1,6 +1,6 @@
 # Smart Bay Lighting
 
-A smart lighting control system for parking bays with real-time MQTT communication between Next.js dashboard and ESP32 microcontroller.
+A smart lighting control system for bays with real-time MQTT communication between Next.js dashboard and ESP32 microcontroller.
 
 ## Features
 
