@@ -4,7 +4,7 @@ A smart lighting control system for parking bays with real-time MQTT communicati
 
 ## Features
 
-- 🏗️ **Self-Booking Dashboard** - Users can book parking bays with automated lighting control
+- 🏗️ **Self-Booking Dashboard** - Users can book bays with automated lighting control
 - 💡 **Real-time Control** - Lights turn on/off automatically based on booking schedule
 - 🔄 **MQTT Communication** - Bi-directional communication between dashboard and ESP32
 - 📱 **Responsive UI** - Modern dashboard with real-time status updates
