@@ -45,7 +45,8 @@ const endpointCategories: EndpointCategory[] = [
             success: true,
             data: [
               {
-                id: 'cm3qk1234',
+                event: 'booking_created',
+                booking_id: 'cm3qk1234',
                 bay_id: 'bay-01',
                 customer: 'John Doe',
                 start_time: '2026-03-28T10:00:00.000Z',
@@ -86,14 +87,14 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'PATCH',
-        path: '/api/bookings',
+        path: '/api/bookings/',
         summary: 'Extend booking',
         description: 'Extend active booking by 1 hour or custom end time.',
         body: {
           id: 'cm3qk1234',
           endTime: '2026-03-28T12:00:00',
         },
-        note: 'Extend only allowed if > 5 minutes before end time. Will send booking_extended event to ESP32.',
+        note: 'Extend only allowed if > 5 minutes before end time. Path must include booking ID (e.g., /api/bookings/cm3qk1234).',
         response: {
           description: 'Returns booking_extended event',
           example: {
@@ -158,7 +159,7 @@ const endpointCategories: EndpointCategory[] = [
         summary: 'Get all bays',
         body: null,
         response: {
-          description: 'Returns array of bays from database',
+          description: 'Returns array of bays from database with current booking status',
           example: {
             success: true,
             data: [
@@ -166,11 +167,36 @@ const endpointCategories: EndpointCategory[] = [
                 id: 'bay-01',
                 relayPin: 4,
                 isActive: false,
+                hasActiveBooking: false,
+                currentBooking: null,
                 createdAt: '2026-03-28T08:00:00.000Z',
                 updatedAt: '2026-03-28T08:00:00.000Z',
               },
             ],
             count: 3,
+          },
+        },
+      },
+      {
+        method: 'PUT',
+        path: '/api/bays',
+        summary: 'Update bay status',
+        description: 'Update physical status (isActive) of a bay manually.',
+        body: {
+          id: 'bay-01',
+          isActive: true,
+        },
+        response: {
+          description: 'Returns the updated bay object',
+          example: {
+            success: true,
+            data: {
+              id: 'bay-01',
+              relayPin: 4,
+              isActive: true,
+              createdAt: '2026-03-28T08:00:00.000Z',
+              updatedAt: '2026-03-31T08:00:00.000Z',
+            },
           },
         },
       },
@@ -233,17 +259,17 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'Device Sync',
-    description: 'Endpoints untuk sync device ESP32 (manual dan otomatis)',
+    title: 'Device & Status',
+    description: 'Endpoints untuk sync dan monitoring device ESP32',
     endpoints: [
       {
         method: 'GET',
         path: '/api/sync',
-        summary: 'Get device info from ESP32',
+        summary: 'Get system overview',
         body: null,
-        note: 'Request device info dari ESP32 via MQTT. Timeout 5 detik. Include status booking aktif.',
+        note: 'Mengambil data bay dari database lengkap dengan status booking aktif.',
         response: {
-          description: 'Returns device info from ESP32 with booking status',
+          description: 'Returns list of bays with active booking info',
           example: {
             success: true,
             data: [
@@ -256,19 +282,6 @@ const endpointCategories: EndpointCategory[] = [
                 createdAt: '2026-03-29T15:45:04.690Z',
                 updatedAt: '2026-03-30T03:43:25.345Z',
               },
-              {
-                id: 'bay-02',
-                relayPin: 5,
-                isActive: false,
-                hasActiveBooking: true,
-                currentBooking: {
-                  id: 'cm3qk1234',
-                  customerName: 'John Doe',
-                  endTime: '2026-03-30T12:00:00.000Z',
-                },
-                createdAt: '2026-03-29T15:45:04.892Z',
-                updatedAt: '2026-03-30T03:43:25.553Z',
-              },
             ],
             count: 3,
           },
@@ -277,18 +290,16 @@ const endpointCategories: EndpointCategory[] = [
       {
         method: 'PUT',
         path: '/api/sync',
-        summary: 'Sync device info to database',
+        summary: 'Sync device to DB',
         body: {
           device_id: 'esp32-abc123',
           device_type: 'Smart Bay Controller',
           firmware_version: '1.0.0',
           bays: [
             { bay_id: 'bay-01', relay_pin: 4, name: 'bay-01' },
-            { bay_id: 'bay-02', relay_pin: 5, name: 'bay-02' },
-            { bay_id: 'bay-03', relay_pin: 6, name: 'bay-03' },
           ],
         },
-        note: 'Biasanya dipanggil otomatis via MQTT saat ESP32 connect. Akan set isActive: true untuk semua bays.',
+        note: 'Biasanya dipanggil otomatis via MQTT saat ESP32 connect.',
         response: {
           description: 'Returns sync confirmation',
           example: {
@@ -298,10 +309,47 @@ const endpointCategories: EndpointCategory[] = [
               device_id: 'esp32-abc123',
               device_type: 'Smart Bay Controller',
               firmware_version: '1.0.0',
-              updated: 2,
-              created: 1,
-              bays: ['bay-01', 'bay-02', 'bay-03'],
+              updated: 1,
+              created: 0,
+              bays: ['bay-01'],
             },
+          },
+        },
+      },
+      {
+        method: 'GET',
+        path: '/api/info',
+        summary: 'Request ESP32 Info',
+        body: null,
+        note: 'Memaksa request device_info ke ESP32 via MQTT. Timeout 5 detik jika device offline.',
+        response: {
+          description: 'Returns device info directly from ESP32',
+          example: {
+            success: true,
+            data: {
+              device_id: 'esp32-s3-123',
+              firmware: '1.0.5',
+              free_heap: 245000,
+            },
+          },
+        },
+      },
+      {
+        method: 'GET',
+        path: '/api/mqtt/status',
+        summary: 'Get MQTT Status',
+        body: null,
+        note: 'Melihat status koneksi MQTT dan heartbeat terakhir dari device.',
+        response: {
+          description: 'Returns last known MQTT status',
+          example: {
+            success: true,
+            data: {
+              device_id: 'esp32-s3-123',
+              timestamp: '2026-03-31T10:00:00.000Z',
+              bays: [{ id: 'bay-01', status: 'ON' }],
+            },
+            mqtt: { connected: true },
           },
         },
       },
@@ -313,7 +361,7 @@ export default function ApiDocs() {
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
   const [selectedEndpoint, setSelectedEndpoint] = useState<number>(0);
   const [customBody, setCustomBody] = useState('');
-  const [bookingId, setBookingId] = useState('');
+  const [idParam, setIdParam] = useState('');
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -323,32 +371,35 @@ export default function ApiDocs() {
   }, []);
 
   const category = endpointCategories[selectedCategory];
-  const endpoint = category?.endpoints[selectedEndpoint] || category?.endpoints[0];
+  const endpoint = category?.endpoints[selectedEndpoint] || (category?.endpoints ? category.endpoints[0] : null);
 
   const handleEndpointSelect = (ep: Endpoint) => {
     setCustomBody(ep.body ? JSON.stringify(ep.body, null, 2) : '');
-    setBookingId('');
+    setIdParam('');
     setResponse(null);
   };
 
   const handleSend = async () => {
+    if (!endpoint) return;
     setIsLoading(true);
     setResponse(null);
     const startTime = Date.now();
 
     try {
-      let path = endpoint?.path || '';
+      let path = endpoint.path;
 
-      if (endpoint?.path.includes('id=') && bookingId) {
-        path = `${endpoint.path}${bookingId}`;
+      if (endpoint.path.includes('?id=') && idParam) {
+        path = `${endpoint.path}${idParam}`;
+      } else if (endpoint.path.endsWith('/') && idParam) {
+        path = `${endpoint.path}${idParam}`;
       }
 
       const options: RequestInit = {
-        method: endpoint?.method,
+        method: endpoint.method,
         headers: { 'Content-Type': 'application/json' },
       };
 
-      if (endpoint?.method === 'POST' || endpoint?.method === 'PUT') {
+      if (endpoint.method === 'POST' || endpoint.method === 'PUT' || endpoint.method === 'PATCH') {
         const bodyData = customBody ? JSON.parse(customBody) : endpoint.body;
         options.body = JSON.stringify(bodyData);
       }
@@ -455,7 +506,7 @@ export default function ApiDocs() {
               </div>
 
               <div className="flex-1 space-y-4" suppressHydrationWarning>
-              {isMounted && (
+              {isMounted && endpoint && (
                 <>
                   <div className="bg-zinc-900/60 backdrop-blur-md rounded-xl border border-zinc-800 p-6 shadow-xl">
                     <div className="flex items-center gap-2 mb-4">
@@ -471,22 +522,22 @@ export default function ApiDocs() {
                       </code>
                     </div>
 
-                    {endpoint.path.includes('id=') && (
+                    {(endpoint.path.includes('?id=') || endpoint.path.endsWith('/')) && (
                       <div className="mb-4">
                         <label className="block text-sm font-semibold text-zinc-400 mb-2">
                           ID Parameter
                         </label>
                         <input
                           type="text"
-                          value={bookingId}
-                          onChange={(e) => setBookingId(e.target.value)}
+                          value={idParam}
+                          onChange={(e) => setIdParam(e.target.value)}
                           placeholder="Enter ID (e.g., cm3qk...)"
                           className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 font-mono text-sm text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
                         />
                       </div>
                     )}
 
-                    {(endpoint.method === 'POST' || endpoint.method === 'PUT') && (
+                    {(endpoint.method === 'POST' || endpoint.method === 'PUT' || endpoint.method === 'PATCH') && (
                       <div>
                         <label className="block text-sm font-semibold text-zinc-400 mb-2">
                           Request Body (JSON)
