@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMqtt } from '@/providers/MqttProvider';
 import { useDeviceStore } from '@/stores/useDeviceStore';
 import { useBayStore } from '@/stores/useBayStore';
 import { RelayStatus } from '@/lib/mqtt/config';
-import { Sidebar, Topbar } from '@/components';
+import { Topbar } from '@/components';
 import { 
   RefreshCw, 
   Wifi, 
@@ -30,9 +29,7 @@ interface BayData {
 
 export default function MonitoringPage() {
   const queryClient = useQueryClient();
-  const { connected, lastStatus } = useMqtt();
-  const [lastUpdate, setLastUpdate] = useState<string>('');
-  const [isMounted, setIsMounted] = useState(false);
+  const { connected, lastStatus, lastUpdateTime } = useMqtt();
 
   const { syncDevice, getDeviceInfo } = useDeviceStore();
   const { getBays } = useBayStore();
@@ -59,26 +56,7 @@ export default function MonitoringPage() {
       await syncDevice(infoResponse.data);
       return queryClient.invalidateQueries({ queryKey: ['bays'] });
     },
-    onSuccess: () => {
-      setLastUpdate(new Date().toLocaleTimeString());
-    },
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (connected || lastStatus) {
-      const timer = setTimeout(() => {
-        setLastUpdate(new Date().toLocaleTimeString());
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [connected, lastStatus]);
 
   const handleSync = () => {
     syncMutation.mutate();
@@ -86,16 +64,14 @@ export default function MonitoringPage() {
 
   const TopbarRight = (
     <div className="flex items-center gap-2 sm:gap-4">
-      {isMounted && (
-        <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-          <Clock className="w-3.5 h-3.5 text-zinc-500" />
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-            Updated: {lastUpdate || '---'}
-          </span>
-        </div>
-      )}
+      <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+        <Clock className="w-3.5 h-3.5 text-zinc-500" />
+        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+          Updated: {lastUpdateTime || '---'}
+        </span>
+      </div>
       
-      {isMounted && connected && (
+      {connected && (
         <button
           onClick={handleSync}
           disabled={syncMutation.isPending}
@@ -124,64 +100,60 @@ export default function MonitoringPage() {
   );
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#050508] text-zinc-300">
-      <Sidebar />
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <Topbar 
+        title="System Monitoring" 
+        subtitle={connected ? 'Real-time Live Data' : 'Offline Mode'} 
+        rightElement={TopbarRight}
+      />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar 
-          title="System Monitoring" 
-          subtitle={connected ? 'Real-time Live Data' : 'Offline Mode'} 
-          rightElement={TopbarRight}
-        />
-
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 max-w-[2000px] mx-auto w-full custom-scrollbar">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-blue-500" />
-                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Active Bays</h3>
-              </div>
-              {!isLoading && (
-                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-[10px] font-black text-zinc-500">
-                  TOTAL: {bays.length}
-                </span>
-              )}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 max-w-[2000px] mx-auto w-full custom-scrollbar">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-blue-500" />
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Active Bays</h3>
             </div>
-
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
-                  <Cpu className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 animate-pulse" />
-                </div>
-                <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest animate-pulse">Initializing System...</p>
-              </div>
-            ) : !Array.isArray(bays) || bays.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 text-center space-y-6 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-3xl">
-                <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                  <AlertCircle className="w-10 h-10 text-zinc-700" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-bold text-zinc-400">No Hardware Found</p>
-                  <p className="text-sm text-zinc-600 max-w-xs mx-auto">Connect your ESP32 controller or start the mock simulator to begin monitoring.</p>
-                </div>
-                <button 
-                  onClick={handleSync}
-                  className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl transition-all border border-zinc-700 uppercase tracking-widest"
-                >
-                  Retry Sync
-                </button>
-              </div>
-            ) : (
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {bays.map((bay) => (
-                  <BayCard key={bay.bay_id} bay={bay} />
-                ))}
-              </div>
+            {!isLoading && (
+              <span className="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-[10px] font-black text-zinc-500">
+                TOTAL: {bays.length}
+              </span>
             )}
           </div>
-        </main>
-      </div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+                <Cpu className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 animate-pulse" />
+              </div>
+              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest animate-pulse">Initializing System...</p>
+            </div>
+          ) : !Array.isArray(bays) || bays.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-32 text-center space-y-6 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-3xl">
+              <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                <AlertCircle className="w-10 h-10 text-zinc-700" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-lg font-bold text-zinc-400">No Hardware Found</p>
+                <p className="text-sm text-zinc-600 max-w-xs mx-auto">Connect your ESP32 controller or start the mock simulator to begin monitoring.</p>
+              </div>
+              <button 
+                onClick={handleSync}
+                className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl transition-all border border-zinc-700 uppercase tracking-widest"
+              >
+                Retry Sync
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {bays.map((bay) => (
+                <BayCard key={bay.bay_id} bay={bay} />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

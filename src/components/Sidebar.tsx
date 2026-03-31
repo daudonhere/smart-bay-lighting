@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSidebarStore } from '@/stores/useSidebarStore';
@@ -45,20 +45,11 @@ const navItems: NavItem[] = [
 export function Sidebar({ className }: SidebarProps) {
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
-  // Prevent hydration mismatch by not rendering the desktop-specific dynamic width until mounted
-  const sidebarWidth = !mounted ? 'lg:w-24' : (isCollapsed ? 'lg:w-24' : 'lg:w-72');
+  const sidebarWidth = isCollapsed ? 'lg:w-24' : 'lg:w-72';
 
   return (
     <>
@@ -89,7 +80,7 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            {mounted && !isCollapsed && (
+            {!isCollapsed && (
               <div className="animate-in fade-in slide-in-from-left-4 duration-500">
                 <h1 className="text-lg font-black text-white tracking-tighter uppercase">Smart Bay</h1>
                 <p className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase opacity-60">Controller</p>
@@ -113,14 +104,14 @@ export function Sidebar({ className }: SidebarProps) {
                   isActive
                     ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
                     : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
-                } ${mounted && isCollapsed ? 'justify-center' : 'px-4'}`}
+                } ${isCollapsed ? 'justify-center' : 'px-4'}`}
               >
                 <Icon className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-blue-400' : 'text-zinc-600'}`} />
-                {mounted && !isCollapsed && (
+                {!isCollapsed && (
                   <span className="ml-4 text-sm font-bold tracking-tight animate-in fade-in duration-500">{item.label}</span>
                 )}
                 
-                {mounted && isActive && !isCollapsed && (
+                {isActive && !isCollapsed && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 animate-pulse" />
                 )}
               </Link>
@@ -134,18 +125,18 @@ export function Sidebar({ className }: SidebarProps) {
             onClick={toggleSidebar}
             className="w-full flex items-center justify-center h-12 rounded-2xl bg-zinc-900/50 border border-zinc-800/50 text-zinc-500 hover:text-white hover:border-zinc-700 transition-all group"
           >
-            <ChevronLeft className={`w-5 h-5 transition-transform duration-500 ${mounted && isCollapsed ? 'rotate-180' : ''}`} />
-            {mounted && !isCollapsed && <span className="ml-2 text-xs font-black uppercase tracking-widest">Minimize</span>}
+            <ChevronLeft className={`w-5 h-5 transition-transform duration-500 ${isCollapsed ? 'rotate-180' : ''}`} />
+            {!isCollapsed && <span className="ml-2 text-xs font-black uppercase tracking-widest">Minimize</span>}
           </button>
         </div>
 
         {/* Footer Info */}
         <div className="p-6 border-t border-zinc-800/50 bg-[#050508]/50">
-          <div className={`flex items-center ${mounted && isCollapsed ? 'justify-center' : 'gap-4'}`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'}`}>
             <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
               <Cpu className="w-4 h-4 text-zinc-600" />
             </div>
-            {mounted && !isCollapsed && (
+            {!isCollapsed && (
               <div className="animate-in fade-in duration-500">
                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">ESP32-S3 Core</p>
                 <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">v1.0.5 Stable</p>

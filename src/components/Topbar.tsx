@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
 interface TopbarProps {
   title: string;
   subtitle?: string;
@@ -9,21 +7,6 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, subtitle, rightElement }: TopbarProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <header className="h-20 flex-shrink-0 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-zinc-800/50 flex items-center justify-between px-4 sm:px-8 z-30" />
-    );
-  }
-
   return (
     <header className="h-20 flex-shrink-0 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-zinc-800/50 flex items-center justify-between px-4 sm:px-8 z-30">
       <div className="flex items-center gap-4">

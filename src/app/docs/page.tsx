@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Sidebar, Topbar } from '@/components';
 import { DEVICE_API, BOOKING_API, BAY_API } from '@/app/api';
 import { 
@@ -19,7 +19,8 @@ import {
   Edit3,
   Monitor,
   Search,
-  Code
+  Code,
+  X
 } from 'lucide-react';
 
 interface Endpoint {
@@ -338,7 +339,7 @@ const endpointCategories: EndpointCategory[] = [
         path: DEVICE_API.INFO,
         summary: 'Request ESP32 Info',
         body: null,
-        note: 'Force request device_info to ESP32 via MQTT. Timeout 5 seconds if device is offline.',
+        note: 'Force request device_info ke ESP32 via MQTT. Timeout 5 detik jika device offline.',
         response: {
           description: 'Returns device info directly from ESP32',
           example: {
@@ -381,12 +382,7 @@ export default function ApiDocs() {
   const [idParam, setIdParam] = useState('');
   const [response, setResponse] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const category = endpointCategories[selectedCategory];
   const currentEndpoints = category?.endpoints.filter(ep => 
@@ -479,255 +475,254 @@ export default function ApiDocs() {
   );
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#050508] text-zinc-300">
-      <Sidebar />
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <Topbar 
+        title="API Documentation" 
+        subtitle="Interactive Explorer & Debugger" 
+        rightElement={TopbarRight}
+      />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar 
-          title="API Documentation" 
-          subtitle="Interactive Explorer & Debugger" 
-          rightElement={TopbarRight}
-        />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-8 max-w-[2000px] mx-auto w-full custom-scrollbar">
+        <div className="flex flex-col xl:flex-row gap-8 h-full">
+          
+          <div className="flex flex-col gap-6 w-full xl:w-80 2xl:w-96 flex-shrink-0">
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 px-2 mb-2">
+                <Layers className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Categories</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
+                {endpointCategories.map((cat, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setSelectedCategory(idx);
+                      setSelectedEndpoint(0);
+                      setResponse(null);
+                    }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
+                      selectedCategory === idx
+                        ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-500/5'
+                        : 'bg-zinc-900/40 border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900/60'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg transition-colors ${
+                      selectedCategory === idx ? 'bg-blue-500/20' : 'bg-zinc-800 group-hover:bg-zinc-700'
+                    }`}>
+                      {cat.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold tracking-tight">{cat.title}</p>
+                      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{cat.endpoints.length} Endpoints</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-8 max-w-[2000px] mx-auto w-full custom-scrollbar">
-          <div className="flex flex-col xl:flex-row gap-8 h-full">
-            
-            <div className="flex flex-col gap-6 w-full xl:w-80 2xl:w-96 flex-shrink-0">
-              <section className="space-y-3">
-                <div className="flex items-center gap-2 px-2 mb-2">
-                  <Layers className="w-4 h-4 text-blue-500" />
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Categories</h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
-                  {endpointCategories.map((cat, idx) => (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 px-2 mb-2">
+                <Activity className="w-4 h-4 text-purple-500" />
+                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Endpoints</h3>
+              </div>
+              <div className="flex flex-col gap-3 max-h-[400px] xl:max-h-none overflow-y-auto pr-2 custom-scrollbar">
+                {currentEndpoints.length > 0 ? (
+                  currentEndpoints.map((ep, idx) => (
                     <button
                       key={idx}
-                      onClick={() => {
-                        setSelectedCategory(idx);
-                        setSelectedEndpoint(0);
-                      }}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
-                        selectedCategory === idx
-                          ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-500/5'
-                          : 'bg-zinc-900/40 border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900/60'
+                      onClick={() => handleEndpointSelect(ep, idx)}
+                      className={`group p-3 rounded-xl border transition-all text-left ${
+                        selectedEndpoint === idx
+                          ? 'bg-zinc-800 border-zinc-700 shadow-xl'
+                          : 'bg-zinc-900/20 border-zinc-800/50 hover:bg-zinc-900/40 hover:border-zinc-700'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg transition-colors ${
-                        selectedCategory === idx ? 'bg-blue-500/20' : 'bg-zinc-800 group-hover:bg-zinc-700'
-                      }`}>
-                        {cat.icon}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black uppercase border ${methodColors[ep.method.toLowerCase()]}`}>
+                          {getMethodIcon(ep.method)}
+                          {ep.method}
+                        </span>
+                        <code className="text-[10px] text-zinc-500 font-mono truncate bg-black/30 px-1.5 py-0.5 rounded">
+                          {ep.path}
+                        </code>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold tracking-tight">{cat.title}</p>
-                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{cat.endpoints.length} Endpoints</p>
-                      </div>
+                      <p className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">{ep.summary}</p>
                     </button>
-                  ))}
-                </div>
-              </section>
+                  ))
+                ) : (
+                  <div className="p-8 text-center border border-dashed border-zinc-800 rounded-xl">
+                    <Search className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-600 font-medium">No endpoints found</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
 
-              <section className="space-y-3">
-                <div className="flex items-center gap-2 px-2 mb-2">
-                  <Activity className="w-4 h-4 text-purple-500" />
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Endpoints</h3>
-                </div>
-                <div className="flex flex-col gap-3 max-h-[400px] xl:max-h-none overflow-y-auto pr-2 custom-scrollbar">
-                  {currentEndpoints.length > 0 ? (
-                    currentEndpoints.map((ep, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleEndpointSelect(ep, idx)}
-                        className={`group p-3 rounded-xl border transition-all text-left ${
-                          selectedEndpoint === idx
-                            ? 'bg-zinc-800 border-zinc-700 shadow-xl'
-                            : 'bg-zinc-900/20 border-zinc-800/50 hover:bg-zinc-900/40 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black uppercase border ${methodColors[ep.method.toLowerCase()]}`}>
-                            {getMethodIcon(ep.method)}
-                            {ep.method}
-                          </span>
-                          <code className="text-[10px] text-zinc-500 font-mono truncate bg-black/30 px-1.5 py-0.5 rounded">
-                            {ep.path}
-                          </code>
+          <div className="flex-1 flex flex-col gap-6 min-w-0">
+            {endpoint ? (
+              <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <section className="bg-[#0a0a0f] border border-zinc-800/50 rounded-2xl p-6 shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                          <Terminal className="w-5 h-5 text-zinc-400" />
                         </div>
-                        <p className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">{ep.summary}</p>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center border border-dashed border-zinc-800 rounded-xl">
-                      <Search className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
-                      <p className="text-xs text-zinc-600 font-medium">No endpoints found</p>
+                        <div>
+                          <h3 className="text-lg font-bold text-white tracking-tight">Request Explorer</h3>
+                          <p className="text-xs text-zinc-500 font-medium mt-0.5">Configure and send API requests</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase border ${methodColors[endpoint.method.toLowerCase()]}`}>
+                        {endpoint.method}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </section>
-            </div>
 
-            <div className="flex-1 flex flex-col gap-6 min-w-0">
-              {isMounted && endpoint ? (
-                <>
-                  <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
-                    <div className="space-y-6">
-                      <section className="bg-[#0a0a0f] border border-zinc-800/50 rounded-2xl p-6 shadow-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                              <Terminal className="w-5 h-5 text-zinc-400" />
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-bold text-white tracking-tight">Request Explorer</h3>
-                              <p className="text-xs text-zinc-500 font-medium mt-0.5">Configure and send API requests</p>
-                            </div>
+                    <div className="space-y-5">
+                      <div className="bg-black/40 border border-zinc-800 rounded-xl p-3">
+                        <code className="text-sm font-mono text-blue-400 flex items-center gap-2 break-all">
+                          <span className="text-zinc-600">HOST</span>
+                          {endpoint.path}
+                          {idParam && (endpoint.path.includes('?id=') || endpoint.path.endsWith('/')) && (
+                            <span className="text-amber-400">{idParam}</span>
+                          )}
+                        </code>
+                      </div>
+
+                      {endpoint.description && (
+                        <p className="text-sm text-zinc-400 leading-relaxed bg-blue-500/5 border-l-2 border-blue-500/30 p-3 rounded-r-lg">
+                          {endpoint.description}
+                        </p>
+                      )}
+
+                      {(endpoint.path.includes('?id=') || endpoint.path.endsWith('/')) && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">ID Parameter</label>
+                          <div className="relative">
+                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                            <input
+                              type="text"
+                              value={idParam}
+                              onChange={(e) => setIdParam(e.target.value)}
+                              placeholder="Enter resource ID (e.g., cm3qk...)"
+                              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-sm font-mono focus:outline-none focus:border-blue-500/50 transition-all"
+                            />
                           </div>
-                          <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase border ${methodColors[endpoint.method.toLowerCase()]}`}>
-                            {endpoint.method}
-                          </span>
                         </div>
+                      )}
 
-                        <div className="space-y-5">
-                          <div className="bg-black/40 border border-zinc-800 rounded-xl p-3">
-                            <code className="text-sm font-mono text-blue-400 flex items-center gap-2 break-all">
-                              <span className="text-zinc-600">HOST</span>
-                              {endpoint.path}
-                              {idParam && (endpoint.path.includes('?id=') || endpoint.path.endsWith('/')) && (
-                                <span className="text-amber-400">{idParam}</span>
-                              )}
-                            </code>
+                      {(endpoint.method === 'POST' || endpoint.method === 'PUT' || endpoint.method === 'PATCH') && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between px-1">
+                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Payload (JSON)</label>
+                            <Code className="w-3 h-3 text-zinc-600" />
                           </div>
+                          <textarea
+                            value={customBody}
+                            onChange={(e) => setCustomBody(e.target.value)}
+                            className="w-full h-48 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-300 focus:outline-none focus:border-blue-500/50 transition-all custom-scrollbar resize-none"
+                          />
+                        </div>
+                      )}
 
-                          {endpoint.description && (
-                            <p className="text-sm text-zinc-400 leading-relaxed bg-blue-500/5 border-l-2 border-blue-500/30 p-3 rounded-r-lg">
-                              {endpoint.description}
-                            </p>
+                      {endpoint.note && (
+                        <div className="flex gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                          <p className="text-xs text-amber-500/80 leading-relaxed font-medium">{endpoint.note}</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleSend}
+                        disabled={isLoading}
+                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 mt-4"
+                      >
+                        {isLoading ? (
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                        {isLoading ? 'EXECUTING...' : 'SEND REQUEST'}
+                      </button>
+                    </div>
+                  </section>
+                </div>
+
+                <div className="space-y-6">
+                  {response ? (
+                    <section className="bg-[#0a0a0f] border-2 border-zinc-800 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                      <div className="bg-zinc-900/80 px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Terminal className="w-4 h-4 text-blue-400" />
+                          <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">Console Output</h3>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black tracking-tighter ${
+                            response.status && response.status >= 200 && response.status < 300
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-rose-500/20 text-rose-400'
+                          }`}>
+                            {response.status && response.status >= 200 && response.status < 300 ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            STATUS: {response.status || 'ERROR'}
+                          </span>
+                          {response.time && (
+                            <span className="flex items-center gap-1.5 px-2 py-1 bg-zinc-800 rounded-md text-[10px] font-bold text-zinc-400">
+                              <Clock className="w-3 h-3" />
+                              {response.time}
+                            </span>
                           )}
-
-                          {(endpoint.path.includes('?id=') || endpoint.path.endsWith('/')) && (
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">ID Parameter</label>
-                              <div className="relative">
-                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                                <input
-                                  type="text"
-                                  value={idParam}
-                                  onChange={(e) => setIdParam(e.target.value)}
-                                  placeholder="Enter resource ID (e.g., cm3qk...)"
-                                  className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-sm font-mono focus:outline-none focus:border-blue-500/50 transition-all"
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {(endpoint.method === 'POST' || endpoint.method === 'PUT' || endpoint.method === 'PATCH') && (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between px-1">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Payload (JSON)</label>
-                                <Code className="w-3 h-3 text-zinc-600" />
-                              </div>
-                              <textarea
-                                value={customBody}
-                                onChange={(e) => setCustomBody(e.target.value)}
-                                className="w-full h-48 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-300 focus:outline-none focus:border-blue-500/50 transition-all custom-scrollbar resize-none"
-                              />
-                            </div>
-                          )}
-
-                          {endpoint.note && (
-                            <div className="flex gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                              <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                              <p className="text-xs text-amber-500/80 leading-relaxed font-medium">{endpoint.note}</p>
-                            </div>
-                          )}
-
-                          <button
-                            onClick={handleSend}
-                            disabled={isLoading}
-                            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 mt-4"
+                          <button 
+                            onClick={() => setResponse(null)}
+                            className="p-1.5 hover:bg-zinc-800 rounded-md text-zinc-500 transition-colors"
                           >
-                            {isLoading ? (
-                              <RefreshCw className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                            {isLoading ? 'EXECUTING...' : 'SEND REQUEST'}
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
-                      </section>
-                    </div>
-
-                    <div className="space-y-6">
-                      {endpoint.response && (
-                        <section className="bg-zinc-950/50 border border-zinc-800/50 rounded-2xl overflow-hidden shadow-2xl">
-                          <div className="bg-zinc-900/50 px-6 py-4 border-b border-zinc-800 flex items-center gap-3">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider">Schema Response</h3>
+                      </div>
+                      <div className="p-6 bg-black/60">
+                        <pre className="text-[11px] font-mono text-zinc-300 overflow-auto max-h-[400px] xl:max-h-[600px] custom-scrollbar leading-loose">
+                          {JSON.stringify(response.data || { error: response.error }, null, 2)}
+                        </pre>
+                      </div>
+                    </section>
+                  ) : endpoint.response ? (
+                    <section className="bg-zinc-950/50 border border-zinc-800/50 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in duration-300">
+                      <div className="bg-zinc-900/50 px-6 py-4 border-b border-zinc-800 flex items-center gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider">Schema Response</h3>
+                      </div>
+                      <div className="p-6">
+                        <p className="text-xs text-zinc-500 mb-4 font-medium italic">{"// " + endpoint.response.description}</p>
+                        <div className="bg-[#050508] rounded-xl p-4 border border-zinc-800/50 relative group">
+                          <pre className="text-[11px] font-mono text-emerald-400/90 overflow-auto max-h-[300px] xl:max-h-[400px] custom-scrollbar leading-relaxed">
+                            {JSON.stringify(endpoint.response.example, null, 2)}
+                          </pre>
+                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button className="p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                              <Code className="w-3 h-3" />
+                            </button>
                           </div>
-                          <div className="p-6">
-                            <p className="text-xs text-zinc-500 mb-4 font-medium italic">{"// " + endpoint.response.description}</p>
-                            <div className="bg-[#050508] rounded-xl p-4 border border-zinc-800/50 relative group">
-                              <pre className="text-[11px] font-mono text-emerald-400/90 overflow-auto max-h-[300px] xl:max-h-[400px] custom-scrollbar leading-relaxed">
-                                {JSON.stringify(endpoint.response.example, null, 2)}
-                              </pre>
-                              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="p-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
-                                  <Code className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </section>
-                      )}
-
-                      {response && (
-                        <section className="bg-[#0a0a0f] border-2 border-zinc-800 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-                          <div className="bg-zinc-900/80 px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Terminal className="w-4 h-4 text-blue-400" />
-                              <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">Console Output</h3>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black tracking-tighter ${
-                                response.status && response.status >= 200 && response.status < 300
-                                  ? 'bg-emerald-500/20 text-emerald-400'
-                                  : 'bg-rose-500/20 text-rose-400'
-                              }`}>
-                                {response.status && response.status >= 200 && response.status < 300 ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                                STATUS: {response.status || 'ERROR'}
-                              </span>
-                              {response.time && (
-                                <span className="flex items-center gap-1.5 px-2 py-1 bg-zinc-800 rounded-md text-[10px] font-bold text-zinc-400">
-                                  <Clock className="w-3 h-3" />
-                                  {response.time}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="p-6 bg-black/60">
-                            <pre className="text-[11px] font-mono text-zinc-300 overflow-auto max-h-[400px] xl:max-h-[600px] custom-scrollbar leading-loose">
-                              {JSON.stringify(response.data || { error: response.error }, null, 2)}
-                            </pre>
-                          </div>
-                        </section>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center p-8 text-center">
-                  <div className="max-w-sm space-y-4 opacity-40">
-                    <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-6">
-                      <Code className="w-10 h-10 text-zinc-700" />
-                    </div>
-                    <h3 className="text-xl font-bold text-zinc-400">Select an Endpoint</h3>
-                    <p className="text-sm text-zinc-600 font-medium">Choose an API endpoint from the sidebar to explore details, schema, and execute live requests.</p>
-                  </div>
+                        </div>
+                      </div>
+                    </section>
+                  ) : null}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-8 text-center">
+                <div className="max-w-sm space-y-4 opacity-40">
+                  <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-6">
+                    <Code className="w-10 h-10 text-zinc-700" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-400">Select an Endpoint</h3>
+                  <p className="text-sm text-zinc-600 font-medium">Choose an API endpoint from the sidebar to explore details, schema, and execute live requests.</p>
+                </div>
+              </div>
+            )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
