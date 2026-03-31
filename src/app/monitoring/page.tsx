@@ -1,151 +1,72 @@
-// eslint-disable-next-line react-hooks/set-state-in-effect
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMqtt } from '@/contexts/MqttContext';
-import { useMqttCommand } from '@/hooks/useMqttCommand';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMqtt } from '@/providers/MqttProvider';
+import { useDeviceStore } from '@/stores/useDeviceStore';
+import { useBayStore } from '@/stores/useBayStore';
 import { RelayStatus } from '@/lib/mqtt/config';
 import { Sidebar } from '@/components';
-import { api } from '@/lib/api';
+
+interface BayData {
+  id: string;
+  relayPin: number;
+  isActive: boolean;
+}
 
 export default function MonitoringPage() {
-  const { connected, lastStatus, deviceInfo } = useMqtt();
+  const queryClient = useQueryClient();
+  const { connected, lastStatus } = useMqtt();
   const [lastUpdate, setLastUpdate] = useState<string>('');
-  const [bays, setBays] = useState<RelayStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMounted(true);
-  }, []);
+  const { syncDevice, getDeviceInfo } = useDeviceStore();
+  const { getBays } = useBayStore();
 
-  const loadBayState = () => {
-    const saved = localStorage.getItem('bayStates');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  };
-
-  const saveBayState = async (bayId: string, active: boolean) => {
-    const saved = loadBayState();
-    saved[bayId] = active;
-    localStorage.setItem('bayStates', JSON.stringify(saved));
-
-    try {
-      await api.post('/command', {
-        command: active ? 'turn_on' : 'turn_off',
-        bay_id: bayId,
-      });
-    } catch {
-      try {
-        await api.put('/bays', {
-          id: bayId,
-          isActive: active,
-        });
-      } catch {}
-
-      const reverted = loadBayState();
-      reverted[bayId] = !active;
-      localStorage.setItem('bayStates', JSON.stringify(reverted));
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const infoResponse = await api.get('/info');
-      const deviceInfo = infoResponse.data as { data: { bays: Array<{ bay_id: string; relay_pin: number }> } };
-
-      await api.put('/sync', deviceInfo.data);
-
-      const baysResponse = await api.get('/bays');
-      const bayData: RelayStatus[] = baysResponse.data.data.map((bay: { id: string; relayPin: number; isActive: boolean }) => ({
+  const { data: bays = [], isLoading } = useQuery({
+    queryKey: ['bays'],
+    queryFn: async () => {
+      const response = await getBays() as { data: BayData[] };
+      return response.data.map((bay) => ({
         bay_id: bay.id,
         relay_pin: bay.relayPin,
         active: bay.isActive,
         lamps: { lamp_1: bay.isActive, lamp_2: bay.isActive },
         end_time: null,
       }));
-      setBays(bayData);
+    },
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const infoResponse = await getDeviceInfo() as { data: unknown };
+      await syncDevice(infoResponse.data);
+      return queryClient.invalidateQueries({ queryKey: ['bays'] });
+    },
+    onSuccess: () => {
       setLastUpdate(new Date().toLocaleTimeString());
-    } catch {
-      setIsSyncing(false);
-    }
-  };
+    },
+  });
 
   useEffect(() => {
-    async function loadBays() {
-      try {
-        const response = await api.get('/bays');
-        const savedStates = loadBayState();
-        const bayData: RelayStatus[] = response.data.data.map((bay: { id: string; relayPin: number; isActive: boolean }) => {
-          const savedActive = savedStates[bay.id];
-          const isActive = savedActive !== undefined ? savedActive : bay.isActive;
-          return {
-            bay_id: bay.id,
-            relay_pin: bay.relayPin,
-            active: isActive,
-            lamps: { lamp_1: isActive, lamp_2: isActive },
-            end_time: null,
-          };
-        });
-        setBays(bayData);
-      } catch {
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadBays();
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (deviceInfo?.bays) {
-      const bayData: RelayStatus[] = deviceInfo.bays.map((bay) => ({
-        bay_id: bay.bay_id,
-        relay_pin: bay.relay_pin,
-        active: false,
-        lamps: { lamp_1: false, lamp_2: false },
-        end_time: null,
-      }));
-      setBays(bayData);
+    if (connected || lastStatus) {
+      const timer = setTimeout(() => {
+        setLastUpdate(new Date().toLocaleTimeString());
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [deviceInfo]);
+  }, [connected, lastStatus]);
 
-  useEffect(() => {
-    if (connected) {
-      setLastUpdate(new Date().toLocaleTimeString());
-    }
-  }, [connected]);
-
-  useEffect(() => {
-    if (lastStatus?.result?.data) {
-      setLastUpdate(new Date().toLocaleTimeString());
-
-      const activeBaysIds = lastStatus.result.data
-        .filter((item): item is NonNullable<typeof item> => item !== null && item.bay_id !== undefined)
-        .map((item) => item.bay_id);
-
-      const bayData: RelayStatus[] = bays.map((bay) => {
-        const isActive = activeBaysIds.includes(bay.bay_id);
-        return {
-          ...bay,
-          active: isActive,
-          lamps: { lamp_1: isActive, lamp_2: isActive },
-          end_time: null,
-        };
-      });
-
-      setBays(bayData);
-    }
-  }, [lastStatus, bays]);
+  const handleSync = () => {
+    syncMutation.mutate();
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
@@ -159,21 +80,19 @@ export default function MonitoringPage() {
               <p className="text-sm text-zinc-500 mt-1">
                 {!isMounted || isLoading
                   ? 'Real-time relay & GPIO status from ESP32'
-                  : deviceInfo?.bays
-                    ? `${deviceInfo.bays.length} bay${deviceInfo.bays.length > 1 ? 's' : ''} connected`
-                    : bays.length > 0
-                      ? `${bays.length} bay${bays.length > 1 ? 's' : ''} from database`
-                      : 'No bays available'}
+                  : (bays as RelayStatus[]).length > 0
+                    ? `${(bays as RelayStatus[]).length} bay${(bays as RelayStatus[]).length > 1 ? 's' : ''} connected`
+                    : 'No bays available'}
               </p>
             </div>
             <div className="flex items-center gap-4">
               {isMounted && connected && (
                 <button
                   onClick={handleSync}
-                  disabled={isSyncing}
+                  disabled={syncMutation.isPending}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-green-800 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all hover:scale-105"
                 >
-                  {isSyncing ? (
+                  {syncMutation.isPending ? (
                     <>
                       <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -214,7 +133,7 @@ export default function MonitoringPage() {
                   <p className="text-zinc-400 mt-4">Loading bays...</p>
                 </div>
               </div>
-            ) : bays.length === 0 ? (
+            ) : (bays as RelayStatus[]).length === 0 ? (
               <div className="flex items-center justify-center py-20">
                 <div className="text-center">
                   <svg className="w-16 h-16 mx-auto text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,12 +145,12 @@ export default function MonitoringPage() {
               </div>
             ) : (
               <div className={`grid gap-6 ${
-                bays.length === 1 ? 'grid-cols-1' :
-                bays.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                (bays as RelayStatus[]).length === 1 ? 'grid-cols-1' :
+                (bays as RelayStatus[]).length === 2 ? 'grid-cols-1 md:grid-cols-2' :
                 'grid-cols-1 md:grid-cols-3'
               }`}>
-                {bays.map((bay) => (
-                  <BayCard key={bay.bay_id} bay={bay} onSaveState={saveBayState} />
+                {(bays as RelayStatus[]).map((bay) => (
+                  <BayCard key={bay.bay_id} bay={bay} />
                 ))}
               </div>
             )}
@@ -242,28 +161,25 @@ export default function MonitoringPage() {
   );
 }
 
-function BayCard({ bay, onSaveState }: { bay: RelayStatus; onSaveState: (bayId: string, active: boolean) => void }) {
+function BayCard({ bay }: { bay: RelayStatus }) {
   const { lastStatus } = useMqtt();
-  const { mutate: sendCommand, isPending } = useMqttCommand();
-  const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
+  const queryClient = useQueryClient();
+  const sendControl = useDeviceStore((state) => state.sendControl);
 
   const isBayInActiveList = lastStatus?.result?.data?.some((b: { bay_id?: string | null } | null) => b?.bay_id === bay.bay_id);
-  const isActive = optimisticState !== null ? optimisticState : (isBayInActiveList ?? bay.active);
+  const isActive = isBayInActiveList ?? bay.active;
 
-  useEffect(() => {
-    if (isBayInActiveList !== undefined) {
-      setOptimisticState(null);
-    }
-  }, [isBayInActiveList]);
+  const controlMutation = useMutation({
+    mutationFn: async (active: boolean) => {
+      return sendControl(active ? 'turn_on' : 'turn_off', bay.bay_id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bays'] });
+    },
+  });
 
   const handleToggle = () => {
-    const newState = !isActive;
-    setOptimisticState(newState);
-    onSaveState(bay.bay_id, newState);
-    sendCommand({
-      command: newState ? 'turn_on' : 'turn_off',
-      bay_id: bay.bay_id,
-    });
+    controlMutation.mutate(!isActive);
   };
 
   return (
@@ -333,14 +249,14 @@ function BayCard({ bay, onSaveState }: { bay: RelayStatus; onSaveState: (bayId: 
 
       <button
         onClick={handleToggle}
-        disabled={isPending}
+        disabled={controlMutation.isPending}
         className={`mt-4 w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
           isActive
             ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-lg shadow-red-500/25'
             : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg shadow-green-500/25'
-        } ${isPending ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+        } ${controlMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
       >
-        {isPending ? (
+        {controlMutation.isPending ? (
           <>
             <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

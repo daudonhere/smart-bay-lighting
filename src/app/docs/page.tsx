@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components';
+import { DEVICE_API, BOOKING_API, BAY_API } from '@/app/api';
 
 interface Endpoint {
   method: string;
@@ -32,11 +33,11 @@ interface EndpointCategory {
 const endpointCategories: EndpointCategory[] = [
   {
     title: 'Booking Management',
-    description: 'Endpoints untuk mengelola booking lapangan parkir',
+    description: 'Endpoints for managing parking bay bookings',
     endpoints: [
       {
         method: 'GET',
-        path: '/api/bookings',
+        path: BOOKING_API.LIST,
         summary: 'Get all bookings',
         body: null,
         response: {
@@ -60,7 +61,7 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'POST',
-        path: '/api/bookings',
+        path: BOOKING_API.CREATE,
         summary: 'Create booking',
         description: 'Create new booking. Lamp will auto-turn-on 30 seconds before start_time via scheduler.',
         body: {
@@ -87,14 +88,14 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'PATCH',
-        path: '/api/bookings/',
+        path: BOOKING_API.UPDATE + '/',
         summary: 'Extend booking',
         description: 'Extend active booking by 1 hour or custom end time.',
         body: {
           id: 'cm3qk1234',
           endTime: '2026-03-28T12:00:00',
         },
-        note: 'Extend only allowed if > 5 minutes before end time. Path must include booking ID (e.g., /api/bookings/cm3qk1234).',
+        note: 'Extend only allowed if > 5 minutes before end time. Path must include booking ID (e.g., /api/booking/update/cm3qk1234).',
         response: {
           description: 'Returns booking_extended event',
           example: {
@@ -113,10 +114,10 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'DELETE',
-        path: '/api/bookings?id=',
+        path: BOOKING_API.DELETE + '?id=',
         summary: 'Cancel booking',
         body: null,
-        note: 'Tambahkan booking ID setelah path (e.g., /api/bookings?id=cm3qk1234). Booking akan di-set status cancelled, tidak dihapus permanen.',
+        note: 'Add booking ID after path (e.g., /api/booking/delete?id=cm3qk1234). Booking status will be set to cancelled, not permanently deleted.',
         response: {
           description: 'Returns booking_ended event',
           example: {
@@ -135,7 +136,7 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'DELETE',
-        path: '/api/bookings',
+        path: BOOKING_API.DELETE,
         summary: 'Delete all bookings',
         body: null,
         response: {
@@ -150,12 +151,12 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'Bays Management',
-    description: 'Endpoints untuk mengelola bay',
+    title: 'Bay Management',
+    description: 'Endpoints for managing parking bays',
     endpoints: [
       {
         method: 'GET',
-        path: '/api/bays',
+        path: BAY_API.LIST,
         summary: 'Get all bays',
         body: null,
         response: {
@@ -179,7 +180,7 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'PUT',
-        path: '/api/bays',
+        path: BAY_API.UPDATE,
         summary: 'Update bay status',
         description: 'Update physical status (isActive) of a bay manually.',
         body: {
@@ -202,10 +203,10 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'DELETE',
-        path: '/api/bays?id=',
+        path: BAY_API.DELETE + '?id=',
         summary: 'Delete bay by ID',
         body: null,
-        note: 'Tambahkan bay ID setelah path (e.g., /api/bays?id=bay-01)',
+        note: 'Add bay ID after path (e.g., /api/bay/delete?id=bay-01)',
         response: {
           description: 'Returns confirmation of deletion',
           example: {
@@ -217,7 +218,7 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'DELETE',
-        path: '/api/bays',
+        path: BAY_API.DELETE,
         summary: 'Delete all bays',
         body: null,
         response: {
@@ -232,12 +233,12 @@ const endpointCategories: EndpointCategory[] = [
     ],
   },
   {
-    title: 'Manual Control',
-    description: 'Endpoints untuk kontrol manual device ESP32 via MQTT',
+    title: 'Device & Control',
+    description: 'Endpoints for ESP32 device management and control',
     endpoints: [
       {
         method: 'POST',
-        path: '/api/command',
+        path: DEVICE_API.CONTROL,
         summary: 'Send MQTT command to ESP32',
         body: {
           command: 'turn_on',
@@ -256,18 +257,12 @@ const endpointCategories: EndpointCategory[] = [
           },
         },
       },
-    ],
-  },
-  {
-    title: 'Device & Status',
-    description: 'Endpoints untuk sync dan monitoring device ESP32',
-    endpoints: [
       {
         method: 'GET',
-        path: '/api/sync',
+        path: DEVICE_API.SYNC,
         summary: 'Get system overview',
         body: null,
-        note: 'Mengambil data bay dari database lengkap dengan status booking aktif.',
+        note: 'Fetch bay data from database including active booking status.',
         response: {
           description: 'Returns list of bays with active booking info',
           example: {
@@ -289,7 +284,7 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'PUT',
-        path: '/api/sync',
+        path: DEVICE_API.SYNC,
         summary: 'Sync device to DB',
         body: {
           device_id: 'esp32-abc123',
@@ -299,7 +294,7 @@ const endpointCategories: EndpointCategory[] = [
             { bay_id: 'bay-01', relay_pin: 4, name: 'bay-01' },
           ],
         },
-        note: 'Biasanya dipanggil otomatis via MQTT saat ESP32 connect.',
+        note: 'Usually called automatically via MQTT when ESP32 connects.',
         response: {
           description: 'Returns sync confirmation',
           example: {
@@ -318,10 +313,10 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'GET',
-        path: '/api/info',
+        path: DEVICE_API.INFO,
         summary: 'Request ESP32 Info',
         body: null,
-        note: 'Memaksa request device_info ke ESP32 via MQTT. Timeout 5 detik jika device offline.',
+        note: 'Force request device_info to ESP32 via MQTT. Timeout 5 seconds if device is offline.',
         response: {
           description: 'Returns device info directly from ESP32',
           example: {
@@ -336,10 +331,10 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'GET',
-        path: '/api/mqtt/status',
+        path: DEVICE_API.STATUS,
         summary: 'Get MQTT Status',
         body: null,
-        note: 'Melihat status koneksi MQTT dan heartbeat terakhir dari device.',
+        note: 'Check MQTT connection status and last heartbeat from device.',
         response: {
           description: 'Returns last known MQTT status',
           example: {
@@ -553,7 +548,7 @@ export default function ApiDocs() {
                     <button
                       onClick={handleSend}
                       disabled={isLoading}
-                      className="mt-4 w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                      className="mt-4 w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
                     >
                       {isLoading ? (
                         <>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useBookings } from '@/hooks/useBooking';
+import { useQuery } from '@tanstack/react-query';
+import { useBookingStore } from '@/stores/useBookingStore';
 import { BookingCard } from './BookingCard';
 import { BookingEventResponse } from '@/types/booking';
 
@@ -23,7 +24,18 @@ function formatTime12Hour(dateString: string): string {
 }
 
 export function BookingList() {
-  const { data: bookings = [], isLoading, error } = useBookings();
+  const getBookings = useBookingStore((state) => state.getBookings);
+
+  const { data: response, isLoading, error } = useQuery({
+    queryKey: ['bookings'],
+    queryFn: async () => {
+      return getBookings() as Promise<{ data: BookingEventResponse[] }>;
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+
+  const bookings = response?.data || [];
 
   if (isLoading) {
     return (

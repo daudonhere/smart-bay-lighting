@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const mqtt = require('mqtt');
+import mqtt from 'mqtt';
 
 const MQTT_BROKER = 'mqtt://broker.emqx.io:1883';
 const CLIENT_ID = `mock-esp32-${process.pid}`;
@@ -117,7 +117,7 @@ function publishStatus() {
     result: {
       success: true,
       data: Object.entries(BAYS)
-        .filter(([_, bay]) => bay.active)
+        .filter((entry) => entry[1].active)
         .map(([bayId, bay]) => ({
           event: 'booking_started',
           booking_id: 'active-booking',
@@ -140,10 +140,10 @@ function publishStatus() {
 setInterval(() => {
   const now = Date.now();
 
-  Object.entries(BAYS).forEach(([, bay]) => {
+  Object.entries(BAYS).forEach(([bayId, bay]) => {
     if (bay.active && bay.endTime && now >= bay.endTime) {
-      console.log(`\nTimer EXPIRED: ${bay.bayId}`);
-      turnOffRelay(bay.bayId);
+      console.log(`\nTimer EXPIRED: ${bayId}`);
+      turnOffRelay(bayId);
       publishStatus();
     }
   });

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useUpdateBooking, useDeleteBooking } from '@/hooks/useBooking';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useBookingStore } from '@/stores/useBookingStore';
 
 interface BookingCardProps {
   id: string;
@@ -20,10 +21,32 @@ export function BookingCard({
   endTime,
   status,
 }: BookingCardProps) {
-  const updateBooking = useUpdateBooking();
-  const deleteBooking = useDeleteBooking();
+  const queryClient = useQueryClient();
+  const updateBooking = useBookingStore((state) => state.updateBooking);
+  const deleteBooking = useBookingStore((state) => state.deleteBooking);
+  
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendEndTime, setExtendEndTime] = useState('');
+
+  const updateMutation = useMutation({
+    mutationFn: async (newEndTime: string) => {
+      return updateBooking(id, { endTime: newEndTime });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      setShowExtendModal(false);
+      setExtendEndTime('');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      return deleteBooking(bookingId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+  });
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -54,24 +77,18 @@ export function BookingCard({
 
   const handleExtend = () => {
     if (!extendEndTime) return;
-    
-    updateBooking.mutate({
-      id,
-      data: { endTime: extendEndTime },
-    });
-    setShowExtendModal(false);
-    setExtendEndTime('');
+    updateMutation.mutate(extendEndTime);
   };
 
   const handleComplete = () => {
     if (confirm('Mark this booking as completed?')) {
-      deleteBooking.mutate(id);
+      deleteMutation.mutate(id);
     }
   };
 
   const handleCancel = () => {
     if (confirm('Are you sure you want to cancel this booking?')) {
-      deleteBooking.mutate(id);
+      deleteMutation.mutate(id);
     }
   };
 
@@ -125,21 +142,21 @@ export function BookingCard({
           <div className="flex gap-2">
             <button
               onClick={openExtendModal}
-              disabled={updateBooking.isPending}
+              disabled={updateMutation.isPending}
               className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 px-3 py-2 text-sm text-white font-semibold hover:from-yellow-400 hover:to-amber-400 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-yellow-500/25"
             >
               Extend
             </button>
             <button
               onClick={handleComplete}
-              disabled={deleteBooking.isPending}
+              disabled={deleteMutation.isPending}
               className="flex-1 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-3 py-2 text-sm text-white font-semibold hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-green-500/25"
             >
               Complete
             </button>
             <button
               onClick={handleCancel}
-              disabled={deleteBooking.isPending}
+              disabled={deleteMutation.isPending}
               className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-sm text-white font-semibold hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-red-500/25"
             >
               Cancel
@@ -149,7 +166,7 @@ export function BookingCard({
           <div className="flex gap-2">
             <button
               onClick={handleCancel}
-              disabled={deleteBooking.isPending}
+              disabled={deleteMutation.isPending}
               className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-sm text-white font-semibold hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-red-500/25"
             >
               Cancel
@@ -220,10 +237,10 @@ export function BookingCard({
                 <button
                   type="button"
                   onClick={handleExtend}
-                  disabled={updateBooking.isPending || !extendEndTime}
+                  disabled={updateMutation.isPending || !extendEndTime}
                   className="flex-1 py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-semibold hover:from-yellow-400 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] shadow-lg shadow-yellow-500/25"
                 >
-                  {updateBooking.isPending ? 'Extending...' : 'Confirm Extend'}
+                  {updateMutation.isPending ? 'Extending...' : 'Confirm Extend'}
                 </button>
               </div>
             </div>

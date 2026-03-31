@@ -1,26 +1,54 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sidebar, BaySelector, DateTimePicker, BookingList } from '@/components';
-import { useBays, useCreateBooking } from '@/hooks/useBooking';
-import { useMqtt } from '@/contexts/MqttContext';
+import { useBookingStore } from '@/stores/useBookingStore';
+import { useBayStore } from '@/stores/useBayStore';
+import { useMqtt } from '@/providers/MqttProvider';
+import { CreateBookingDto } from '@/types/booking';
 
 export default function Dashboard() {
-  const { data: bays = [], isLoading: baysLoading, refetch: refetchBays } = useBays();
-  const createBooking = useCreateBooking();
+  const queryClient = useQueryClient();
+  const getBays = useBayStore((state) => state.getBays);
+  const createBooking = useBookingStore((state) => state.createBooking);
+  
+  const { data: response, isLoading: baysLoading } = useQuery({
+    queryKey: ['bays'],
+    queryFn: async () => {
+      return getBays() as Promise<{ data: Array<{ id: string; isActive: boolean }> }>;
+    },
+  });
+
+  const bays = response?.data || [];
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateBookingDto) => {
+      return createBooking(data);
+    },
+    onSuccess: () => {
+      setShowBookingForm(false);
+      setSelectedBay('');
+      setCustomerName('');
+      setStartTime('');
+      setEndTime('');
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bays'] });
+    },
+  });
+
   const { lastStatus } = useMqtt();
   const [selectedBay, setSelectedBay] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [showBookingForm, setShowBookingForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (lastStatus?.result?.data) {
-      refetchBays();
+      queryClient.invalidateQueries({ queryKey: ['bays'] });
     }
-  }, [lastStatus, refetchBays]);
+  }, [lastStatus, queryClient]);
 
   const minDateTime = new Date();
 
@@ -30,28 +58,12 @@ export default function Dashboard() {
       return;
     }
 
-    setIsSubmitting(true);
-    createBooking.mutate(
-      {
-        bayId: selectedBay,
-        customerName,
-        startTime,
-        endTime,
-      },
-      {
-        onSuccess: () => {
-          setShowBookingForm(false);
-          setSelectedBay('');
-          setCustomerName('');
-          setStartTime('');
-          setEndTime('');
-          refetchBays();
-        },
-        onError: () => {
-          setIsSubmitting(false);
-        },
-      }
-    );
+    createMutation.mutate({
+      bayId: selectedBay,
+      customerName,
+      startTime,
+      endTime,
+    });
   };
 
   return (
@@ -176,10 +188,10 @@ export default function Dashboard() {
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={createMutation.isPending}
                       className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
                     >
-                      {isSubmitting ? 'Booking...' : 'Confirm Booking'}
+                      {createMutation.isPending ? 'Booking...' : 'Confirm Booking'}
                     </button>
                   </div>
                 </form>

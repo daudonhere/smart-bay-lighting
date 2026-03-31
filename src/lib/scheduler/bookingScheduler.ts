@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
-import { mqttBridgeService } from './mqtt/bridge';
+import { prisma } from '@/lib/prisma';
+import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
 const CHECK_INTERVAL = 10000;
 
