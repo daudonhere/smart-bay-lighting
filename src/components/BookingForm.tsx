@@ -6,6 +6,7 @@ import { useBookingStore } from '@/stores/useBookingStore';
 import { useBayStore } from '@/stores/useBayStore';
 import { DateTimePicker, BaySelector } from '.';
 import { CreateBookingDto } from '@/types/booking';
+import { User, Loader2 } from 'lucide-react';
 
 interface BookingFormProps {
   onSuccess?: () => void;
@@ -81,14 +82,17 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-zinc-400 mb-2">Customer Name</label>
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
+          <User className="w-3 h-3" />
+          Customer Name
+        </label>
         <input
           type="text"
           value={customerName}
           onChange={(e) => setCustomerName(e.target.value)}
           placeholder="Enter customer name"
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
+          className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-5 py-4 text-white placeholder-zinc-700 focus:outline-none focus:border-blue-500/50 transition-all"
           required
         />
       </div>
@@ -112,25 +116,22 @@ export function BookingForm({ onSuccess, onCancel }: BookingFormProps) {
         <button
           type="submit"
           disabled={createMutation.isPending || !selectedBay}
-          className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white font-semibold hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
+          className="flex-1 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white font-bold hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] shadow-lg shadow-blue-600/20"
         >
           {createMutation.isPending ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+            <span className="flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-black">
+              <Loader2 className="w-4 h-4 animate-spin" />
               Creating...
             </span>
           ) : (
-            'Create Booking'
+            <span className="uppercase tracking-widest text-xs font-black">Create Booking</span>
           )}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 rounded-xl border-2 border-zinc-700 text-zinc-400 font-semibold hover:bg-zinc-800/50 transition-all"
+            className="px-6 py-4 rounded-2xl border border-zinc-800 text-zinc-500 font-bold uppercase tracking-widest text-xs hover:bg-zinc-900 transition-all"
           >
             Cancel
           </button>

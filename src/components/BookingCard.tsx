@@ -3,6 +3,15 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBookingStore } from '@/stores/useBookingStore';
+import { 
+  Clock, 
+  User, 
+  Calendar, 
+  X, 
+  Timer, 
+  ChevronRight,
+  Loader2
+} from 'lucide-react';
 
 interface BookingCardProps {
   id: string;
@@ -53,10 +62,8 @@ export function BookingCard({
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true,
     });
   };
@@ -65,13 +72,13 @@ export function BookingCard({
     switch (status) {
       case 'started':
       case 'extended':
-        return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white';
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
       case 'created':
-        return 'bg-gradient-to-r from-zinc-500 to-zinc-600 text-white';
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
       case 'completed':
-        return 'bg-slate-600 text-white';
+        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
       case 'cancelled':
-        return 'bg-gradient-to-r from-red-500 to-rose-500 text-white';
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
     }
   };
 
@@ -101,146 +108,125 @@ export function BookingCard({
 
   return (
     <>
-      <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-md p-5 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all hover:scale-[1.02]">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center border border-blue-500/20">
-              <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
-              </svg>
+      <div className="group relative rounded-3xl border border-zinc-800 bg-[#0a0a0f] p-6 shadow-xl hover:border-zinc-700 transition-all duration-300">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-blue-500/30 transition-colors">
+              <User className="w-6 h-6 text-zinc-500 group-hover:text-blue-400 transition-colors" />
             </div>
             <div>
-              <h4 className="font-bold text-zinc-100 uppercase">{bayName}</h4>
-              <p className="text-sm text-zinc-500">{customerName}</p>
+              <h4 className="text-lg font-black text-white uppercase tracking-tighter">{bayName}</h4>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{customerName}</p>
             </div>
           </div>
-          <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${getStatusStyle()}`}>
-            {status.toUpperCase()}
+          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getStatusStyle()}`}>
+            {status}
           </span>
         </div>
 
-        <div className="bg-zinc-800/50 rounded-xl p-4 mb-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-zinc-400">
-              <span className="font-semibold">Start:</span> {formatTime(startTime)}
-            </span>
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center gap-3 p-3 bg-zinc-950 border border-zinc-800/50 rounded-2xl">
+            <Calendar className="w-4 h-4 text-emerald-500/50" />
+            <div>
+              <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Start Time</p>
+              <p className="text-xs font-bold text-zinc-300">{formatTime(startTime)}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-zinc-400">
-              <span className="font-semibold">End:</span> {formatTime(endTime)}
-            </span>
+          <div className="flex items-center gap-3 p-3 bg-zinc-950 border border-zinc-800/50 rounded-2xl">
+            <Clock className="w-4 h-4 text-rose-500/50" />
+            <div>
+              <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">End Time</p>
+              <p className="text-xs font-bold text-zinc-300">{formatTime(endTime)}</p>
+            </div>
           </div>
         </div>
 
-        {status === 'started' || status === 'extended' ? (
-          <div className="flex gap-2">
-            <button
-              onClick={openExtendModal}
-              disabled={updateMutation.isPending}
-              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 px-3 py-2 text-sm text-white font-semibold hover:from-yellow-400 hover:to-amber-400 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-yellow-500/25"
-            >
-              Extend
-            </button>
-            <button
-              onClick={handleComplete}
-              disabled={deleteMutation.isPending}
-              className="flex-1 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-3 py-2 text-sm text-white font-semibold hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-green-500/25"
-            >
-              Complete
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={deleteMutation.isPending}
-              className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-sm text-white font-semibold hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-red-500/25"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : status === 'created' ? (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {status === 'started' || status === 'extended' ? (
+            <>
+              <button
+                onClick={openExtendModal}
+                disabled={updateMutation.isPending}
+                className="flex-1 py-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] font-black uppercase tracking-widest hover:text-white hover:bg-zinc-800 transition-all"
+              >
+                Extend
+              </button>
+              <button
+                onClick={handleComplete}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-3.5 rounded-xl bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-lg shadow-emerald-600/5"
+              >
+                Finish
+              </button>
+            </>
+          ) : status === 'created' ? (
             <button
               onClick={handleCancel}
               disabled={deleteMutation.isPending}
-              className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-sm text-white font-semibold hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition-all hover:scale-[1.02] shadow-lg shadow-red-500/25"
+              className="w-full py-3.5 rounded-xl bg-rose-600/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all"
             >
-              Cancel
+              Cancel Reservation
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {showExtendModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050508]/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0a0a0f] border border-zinc-800 rounded-[2.5rem] p-8 sm:p-10 shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Timer className="w-6 h-6 text-amber-500" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-zinc-100">Extend Booking</h3>
-                  <p className="text-sm text-zinc-500">{bayName} - {customerName}</p>
+                  <h3 className="text-xl font-bold text-white tracking-tight">Extend Session</h3>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Update expiration time</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowExtendModal(false)}
-                className="p-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400"
+                className="p-2 rounded-xl hover:bg-zinc-900 text-zinc-500 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-zinc-400 mb-2">
-                  Current End Time
-                </label>
-                <div className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-300">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest px-1">Current Expiry</label>
+                <div className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-4 px-6 text-zinc-400 font-bold text-sm">
                   {formatTime(endTime)}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-zinc-400 mb-2">
-                  New End Time
-                </label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest px-1">New Expiry Time</label>
                 <input
                   type="datetime-local"
                   value={extendEndTime}
                   onChange={(e) => setExtendEndTime(e.target.value)}
                   min={new Date().toISOString().slice(0, 16)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-900 outline-none transition-all"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-amber-500/50 transition-all font-mono [color-scheme:dark]"
                 />
-                <p className="text-xs text-zinc-500 mt-2">
-                  Default: +1 hour from current end time
-                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowExtendModal(false)}
-                  className="flex-1 py-3 rounded-xl border border-zinc-700 bg-zinc-800/50 text-zinc-300 font-semibold hover:bg-zinc-800 transition-all"
+                  className="flex-1 py-4 rounded-2xl border border-zinc-800 text-zinc-500 font-black text-xs uppercase tracking-widest hover:bg-zinc-900 transition-all"
                 >
-                  Cancel
+                  Discard
                 </button>
                 <button
                   type="button"
                   onClick={handleExtend}
                   disabled={updateMutation.isPending || !extendEndTime}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-semibold hover:from-yellow-400 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] shadow-lg shadow-yellow-500/25"
+                  className="flex-[2] py-4 rounded-2xl bg-amber-600 text-white font-black text-xs uppercase tracking-widest hover:bg-amber-500 transition-all shadow-xl shadow-amber-600/20 flex items-center justify-center gap-2"
                 >
-                  {updateMutation.isPending ? 'Extending...' : 'Confirm Extend'}
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                  Confirm Update
                 </button>
               </div>
             </div>

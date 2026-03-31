@@ -73,7 +73,7 @@ Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
 For testing without physical hardware:
 
 ```bash
-node mock-esp32.js
+node src/lib/mock-esp32.mjs
 ```
 
 This simulates ESP32 behavior:
@@ -133,17 +133,8 @@ smart-bay-lighting/
 │   │   │   ├── config.ts     # MQTT configuration
 │   │   │   └── service.ts    # Client-side MQTT service
 │   │   ├── bookingScheduler.ts # Automated booking triggers
-│   │   └── prisma.ts         # Prisma client singleton
+│   │   ├── mock-esp32.mjs    # Node.js ESP32 simulator
 │   └── types/
-│       └── booking.ts        # TypeScript types
-├── node-lighting/
-│   ├── src/main.cpp          # ESP32 firmware
-│   ├── diagram.json          # Wokwi simulation config
-│   └── platformio.ini        # PlatformIO config
-├── prisma/
-│   ├── schema.prisma         # Database schema
-│   └── dev.db                # SQLite database
-└── mock-esp32.js             # Node.js ESP32 simulator
 ```
 
 ## API Endpoints

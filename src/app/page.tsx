@@ -2,11 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sidebar, BaySelector, DateTimePicker, BookingList } from '@/components';
+import { Sidebar, Topbar, BaySelector, DateTimePicker, BookingList } from '@/components';
 import { useBookingStore } from '@/stores/useBookingStore';
 import { useBayStore } from '@/stores/useBayStore';
 import { useMqtt } from '@/providers/MqttProvider';
 import { CreateBookingDto } from '@/types/booking';
+import { 
+  MapPin, 
+  User, 
+  Clock, 
+  CheckCircle2, 
+  X, 
+  Plus, 
+  LayoutGrid, 
+  ClipboardList,
+  ChevronRight,
+  Loader2,
+  Sparkles
+} from 'lucide-react';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -67,131 +80,184 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#0a0a0f]">
+    <div className="h-screen flex overflow-hidden bg-[#050508] text-zinc-300">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800 shadow-sm flex-shrink-0">
-          <div className="px-8 py-5">
-            <h2 className="text-2xl font-bold text-zinc-100">Self Booking</h2>
-            <p className="text-sm text-zinc-500 mt-1">Select your bay and book your session</p>
-          </div>
-        </header>
+        <Topbar 
+          title="Self Booking" 
+          subtitle="Reserve your space & control lights" 
+        />
 
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-6xl mx-auto space-y-8">
-            <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl border border-zinc-800 p-8 shadow-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
-                  </svg>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 max-w-[1600px] mx-auto w-full custom-scrollbar">
+          <div className="grid grid-cols-1 gap-8">
+            <section className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+              <div className="relative bg-[#0a0a0f] border border-zinc-800/50 rounded-3xl p-6 sm:p-8 shadow-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                      <LayoutGrid className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Select Your Bay</h3>
+                      <p className="text-sm text-zinc-500">Choose an available spot to begin</p>
+                    </div>
+                  </div>
+                  {selectedBay && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in slide-in-from-right-4">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">{selectedBay} Selected</span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-zinc-100">Select Your Bay</h3>
-                  <p className="text-sm text-zinc-500">Choose an available bay for your session</p>
-                </div>
+
+                {baysLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                    <p className="text-xs font-bold text-zinc-600 uppercase tracking-[0.2em]">Loading Inventory...</p>
+                  </div>
+                ) : (
+                  <div className="animate-in fade-in duration-700">
+                    <BaySelector
+                      bays={bays}
+                      selectedBay={selectedBay}
+                      onSelect={setSelectedBay}
+                    />
+                  </div>
+                )}
+
+                {selectedBay && (
+                  <div className="mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <button
+                      onClick={() => setShowBookingForm(true)}
+                      className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] hover:from-blue-500 hover:to-indigo-500 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-2xl shadow-blue-600/20 flex items-center justify-center gap-3"
+                    >
+                      <Sparkles className="w-5 h-5" />
+                      Book {selectedBay.toUpperCase()} Now
+                    </button>
+                  </div>
+                )}
               </div>
+            </section>
 
-              {baysLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-zinc-800 border-t-blue-500"></div>
+            <section className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="w-5 h-5 text-indigo-500" />
+                  <h3 className="text-lg font-bold text-white tracking-tight uppercase tracking-[0.1em]">Your Schedule</h3>
                 </div>
-              ) : (
-                <BaySelector
-                  bays={bays}
-                  selectedBay={selectedBay}
-                  onSelect={setSelectedBay}
-                />
-              )}
-
-              {selectedBay && (
-                <div className="mt-6">
-                  <button
-                    onClick={() => setShowBookingForm(true)}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
-                  >
-                    Book This Bay
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl border border-zinc-800 shadow-xl">
-              <div className="p-6 border-b border-zinc-800">
-                <h3 className="text-xl font-bold text-zinc-100">BOOKING LIST</h3>
+                <div className="h-px flex-1 mx-6 bg-gradient-to-r from-zinc-800 to-transparent"></div>
               </div>
-              <div className="p-6">
+              
+              <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-3xl p-2 sm:p-6 backdrop-blur-sm">
                 <BookingList />
               </div>
-            </div>
+            </section>
           </div>
 
           {showBookingForm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-12 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
-                <div className="flex items-center gap-3 mb-10">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050508]/90 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-[#0a0a0f] border border-zinc-800 rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto overflow-x-hidden animate-in zoom-in-95 duration-300 custom-scrollbar">
+                <div className="sticky top-0 z-10 bg-[#0a0a0f]/80 backdrop-blur-lg border-b border-zinc-800/50 px-8 py-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                      <Plus className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Booking Details</h3>
+                      <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">Complete your reservation</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-zinc-100">Booking Details</h3>
-                    <p className="text-sm text-zinc-500">Complete your booking for {selectedBay}</p>
-                  </div>
+                  <button
+                    onClick={() => setShowBookingForm(false)}
+                    className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700 transition-all active:scale-90"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 pb-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-zinc-400 mb-2">Customer Name</label>
+                <form onSubmit={handleSubmit} className="p-8 sm:p-12 space-y-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
+                        <User className="w-3.5 h-3.5" />
+                        Customer Name
+                      </label>
                       <input
                         type="text"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900 outline-none transition-all"
+                        placeholder="Who is booking?"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-4 px-6 text-white placeholder-zinc-700 focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all text-lg font-medium"
                         required
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-zinc-400 mb-2">Selected Bay</label>
-                      <div className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-zinc-100 uppercase">
-                        {selectedBay.toUpperCase()}
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Target Bay
+                      </label>
+                      <div className="w-full bg-blue-500/5 border border-blue-500/20 rounded-2xl py-4 px-6 text-blue-400 font-black text-xl uppercase tracking-tighter flex items-center justify-between">
+                        {selectedBay}
+                        <ChevronRight className="w-5 h-5 text-blue-500/30" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <DateTimePicker
-                      label="Start Time"
-                      value={startTime}
-                      onChange={setStartTime}
-                      minDate={minDateTime}
-                    />
-                    <DateTimePicker
-                      label="End Time"
-                      value={endTime}
-                      onChange={setEndTime}
-                      minDate={startTime ? new Date(startTime) : minDateTime}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        Start Time
+                      </label>
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2">
+                        <DateTimePicker
+                          value={startTime}
+                          onChange={setStartTime}
+                          minDate={minDateTime}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        End Time
+                      </label>
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2">
+                        <DateTimePicker
+                          value={endTime}
+                          onChange={setEndTime}
+                          minDate={startTime ? new Date(startTime) : minDateTime}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex gap-4 pt-4">
+                  <div className="pt-6 flex flex-col sm:flex-row gap-4">
                     <button
                       type="button"
                       onClick={() => setShowBookingForm(false)}
-                      className="flex-1 py-3 rounded-xl border border-zinc-700 bg-zinc-800/50 text-zinc-300 font-semibold hover:bg-zinc-800 transition-all"
+                      className="flex-1 py-5 rounded-2xl border border-zinc-800 text-zinc-500 font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all"
                     >
-                      Cancel
+                      Discard
                     </button>
                     <button
                       type="submit"
                       disabled={createMutation.isPending}
-                      className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/25"
+                      className="flex-[2] py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-blue-600/20 flex items-center justify-center gap-3"
                     >
-                      {createMutation.isPending ? 'Booking...' : 'Confirm Booking'}
+                      {createMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" />
+                          Confirm Reservation
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
