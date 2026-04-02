@@ -31,6 +31,8 @@ export default function Dashboard() {
     queryFn: async () => {
       return getBays() as Promise<{ data: Array<{ id: string; isActive: boolean }> }>;
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const bays = response?.data || [];

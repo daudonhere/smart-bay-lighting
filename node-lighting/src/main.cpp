@@ -100,6 +100,7 @@ void publishDeviceInfo() {
     bayObj["bay_id"] = bays[i].bayId;
     bayObj["relay_pin"] = bays[i].relayPin;
     bayObj["name"] = bays[i].bayId;
+    bayObj["active"] = bays[i].active; // Tambahkan status fisik relay
   }
   
   char output[512];
@@ -197,6 +198,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       }
     }
 
+    publishDeviceInfo(); // Segera lapor status terbaru setelah eksekusi
     publishActiveBaysResponse();
   }
 }

@@ -464,7 +464,7 @@ export default function ApiDocs() {
       }`}>
         {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
         <span className="text-[10px] font-black uppercase tracking-tighter hidden md:inline">
-          {connected ? 'Connected' : 'Disconnected'}
+          {connected ? 'MQTT Connected' : 'MQTT Disconnected'}
         </span>
       </div>
     </div>

@@ -46,6 +46,8 @@ export default function MonitoringPage() {
         end_time: null,
       }));
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const bays = baysResponse || [];
@@ -93,7 +95,7 @@ export default function MonitoringPage() {
       }`}>
         {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
         <span className="text-[10px] font-black uppercase tracking-tighter hidden md:inline">
-          {connected ? 'Connected' : 'Disconnected'}
+          {connected ? 'MQTT Connected' : 'MQTT Disconnected'}
         </span>
       </div>
     </div>

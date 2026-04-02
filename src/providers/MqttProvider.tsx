@@ -65,10 +65,15 @@ export function MqttProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['bays'] });
     });
 
+    const unsubscribeDeviceInfo = mqttService.onDeviceInfo(() => {
+      queryClient.invalidateQueries({ queryKey: ['bays'] });
+    });
+
     return () => {
       unsubscribeConnection();
       unsubscribeStatus();
       unsubscribeBooking();
+      unsubscribeDeviceInfo();
     };
   }, [queryClient]);
 

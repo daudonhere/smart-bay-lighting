@@ -1,4 +1,5 @@
 import mqtt, { MqttClient } from 'mqtt';
+import { prisma } from '@/lib/prisma';
 
 const MQTT_BROKER = 'mqtt://broker.hivemq.com:1883';
 const MQTT_CLIENT_ID = `smart-bay-bridge-${Math.random().toString(16).slice(3)}`;
@@ -11,6 +12,7 @@ interface DeviceInfo {
     bay_id: string;
     relay_pin: number;
     name: string;
+    active: boolean;
   }>;
 }
 
@@ -86,9 +88,25 @@ class MqttBridgeService {
     });
   }
 
-  private handleDeviceInfo(message: string) {
+  private async handleDeviceInfo(message: string) {
     try {
-      const data = JSON.parse(message);
+      const data: DeviceInfo = JSON.parse(message);
+      
+      if (data.bays && Array.isArray(data.bays)) {
+        for (const bay of data.bays) {
+          try {
+            await prisma.bay.update({
+              where: { id: bay.bay_id },
+              data: { 
+                isActive: bay.active,
+                relayPin: bay.relay_pin 
+              }
+            });
+          } catch {
+          }
+        }
+      }
+
       if (this.deviceInfoResolve) {
         const resolve = this.deviceInfoResolve;
         this.deviceInfoResolve = null;

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 interface BookingEvent {
   event: 'booking_created' | 'booking_started' | 'booking_extended' | 'booking_ended';
   booking_id: string;

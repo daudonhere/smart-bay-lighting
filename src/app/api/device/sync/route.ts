@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { mqttBridgeService } from '@/lib/mqtt/bridge';
 
+export const dynamic = 'force-dynamic';
+
 interface DeviceInfo {
   device_id: string;
   device_type: string;
