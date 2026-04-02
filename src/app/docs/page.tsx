@@ -262,48 +262,26 @@ const endpointCategories: EndpointCategory[] = [
     icon: <Cpu className="w-5 h-5" />,
     endpoints: [
       {
-        method: 'POST',
-        path: DEVICE_API.CONTROL,
-        summary: 'Send MQTT command to ESP32',
-        body: {
-          command: 'turn_on',
-          bay_id: 'bay-01',
-        },
-        note: 'Commands: turn_on, turn_off, reset_error. Bay IDs: bay-01, bay-02, bay-03',
-        response: {
-          description: 'Returns command confirmation',
-          example: {
-            success: true,
-            message: "Command 'turn_on' sent to bay-01",
-            data: {
-              command: 'turn_on',
-              bay_id: 'bay-01',
-            },
-          },
-        },
-      },
-      {
         method: 'GET',
-        path: DEVICE_API.SYNC,
-        summary: 'Get system overview',
+        path: DEVICE_API.INFO,
+        summary: 'Request ESP32 Info',
         body: null,
-        note: 'Fetch bay data from database including active booking status.',
+        note: 'Check MQTT connection status and request device hardware configuration directly from ESP32.',
         response: {
-          description: 'Returns list of bays with active booking info',
+          description: 'Returns consolidated hardware info and MQTT connection status',
           example: {
             success: true,
-            data: [
-              {
-                id: 'bay-01',
-                relayPin: 4,
-                isActive: true,
-                hasActiveBooking: false,
-                currentBooking: null,
-                createdAt: '2026-03-29T15:45:04.690Z',
-                updatedAt: '2026-03-30T03:43:25.345Z',
-              },
-            ],
-            count: 3,
+            data: {
+              device_id: 'esp32-100100c40a24',
+              device_type: 'Smart Bay Controller',
+              firmware_version: '1.0.0',
+              bays: [
+                { bay_id: 'bay-01', relay_pin: 4, name: 'bay-01' },
+                { bay_id: 'bay-02', relay_pin: 5, name: 'bay-02' },
+                { bay_id: 'bay-03', relay_pin: 6, name: 'bay-03' }
+              ]
+            },
+            mqtt: { connected: true },
           },
         },
       },
@@ -338,38 +316,47 @@ const endpointCategories: EndpointCategory[] = [
       },
       {
         method: 'GET',
-        path: DEVICE_API.INFO,
-        summary: 'Request ESP32 Info',
+        path: DEVICE_API.SYNC,
+        summary: 'Get synchronized data',
         body: null,
-        note: 'Force request device_info ke ESP32 via MQTT. Timeout 5 detik jika device offline.',
+        note: 'Fetch bay data from database including active booking status.',
         response: {
-          description: 'Returns device info directly from ESP32',
+          description: 'Returns list of bays with active booking info',
           example: {
             success: true,
-            data: {
-              device_id: 'esp32-s3-123',
-              firmware: '1.0.5',
-              free_heap: 245000,
-            },
+            data: [
+              {
+                id: 'bay-01',
+                relayPin: 4,
+                isActive: true,
+                hasActiveBooking: false,
+                currentBooking: null,
+                createdAt: '2026-03-29T15:45:04.690Z',
+                updatedAt: '2026-03-30T03:43:25.345Z',
+              },
+            ],
+            count: 3,
           },
         },
       },
       {
-        method: 'GET',
-        path: DEVICE_API.STATUS,
-        summary: 'Get MQTT Status',
-        body: null,
-        note: 'Check MQTT connection status and last heartbeat from device.',
+        method: 'POST',
+        path: DEVICE_API.CONTROL,
+        summary: 'Control device manual',
+        body: {
+          command: 'turn_on',
+          bay_id: 'bay-01',
+        },
+        note: 'Commands: turn_on, turn_off, reset_error. Bay IDs: bay-01, bay-02, bay-03',
         response: {
-          description: 'Returns last known MQTT status',
+          description: 'Returns command confirmation',
           example: {
             success: true,
+            message: "Command 'turn_on' sent to bay-01",
             data: {
-              device_id: 'esp32-s3-123',
-              timestamp: '2026-03-31T10:00:00.000Z',
-              bays: [{ id: 'bay-01', status: 'ON' }],
+              command: 'turn_on',
+              bay_id: 'bay-01',
             },
-            mqtt: { connected: true },
           },
         },
       },

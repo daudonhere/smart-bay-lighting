@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { mqttService } from '@/lib/mqtt/service';
 import { BookingEvent, BayStatus } from '@/lib/mqtt/config';
+import { DEVICE_API } from '@/app/api';
 
 interface DeviceInfo {
   device_id: string;
@@ -30,36 +32,43 @@ export function MqttProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
   const [lastStatus, setLastStatus] = useState<BayStatus | null>(null);
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState('');
+
+  const { data: deviceInfoResponse } = useQuery({
+    queryKey: ['device-info'],
+    queryFn: async () => {
+      const response = await axios.get(DEVICE_API.INFO);
+      return response.data;
+    },
+    refetchInterval: 10000,
+  });
+
+  const deviceInfo = deviceInfoResponse?.data || null;
 
   useEffect(() => {
     mqttService.connect();
 
+    const unsubscribeConnection = mqttService.onConnectionChange((isConnected) => {
+      setConnected(isConnected);
+      if (isConnected) {
+        setLastUpdateTime(new Date().toLocaleTimeString());
+      }
+    });
+
     const unsubscribeStatus = mqttService.onStatusUpdate((status) => {
       setLastStatus(status);
-      setConnected(true);
-      setLastUpdateTime(new Date().toLocaleTimeString());
-      
-      // Auto-invalidate queries when device sends status update
       queryClient.invalidateQueries({ queryKey: ['bays'] });
     });
 
     const unsubscribeBooking = mqttService.onBookingEvent(() => {
-      setConnected(true);
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['bays'] });
     });
 
-    const unsubscribeDeviceInfo = mqttService.onDeviceInfo((info) => {
-      setDeviceInfo(info);
-      setConnected(true);
-    });
-
     return () => {
+      unsubscribeConnection();
       unsubscribeStatus();
       unsubscribeBooking();
-      unsubscribeDeviceInfo();
     };
   }, [queryClient]);
 

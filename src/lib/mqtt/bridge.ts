@@ -1,7 +1,7 @@
 import mqtt, { MqttClient } from 'mqtt';
 
-const MQTT_BROKER = 'mqtt://broker.emqx.io:1883';
-const MQTT_CLIENT_ID = `smart-bay-server-${process.pid}`;
+const MQTT_BROKER = 'mqtt://broker.hivemq.com:1883';
+const MQTT_CLIENT_ID = `smart-bay-bridge-${Math.random().toString(16).slice(3)}`;
 
 interface DeviceInfo {
   device_id: string;
@@ -18,173 +18,120 @@ class MqttBridgeService {
   private client: MqttClient | null = null;
   private connected: boolean = false;
   private connectPromise: Promise<void> | null = null;
-  private deviceInfoPromise: Promise<DeviceInfo> | null = null;
-  private deviceInfoResolve: ((data: DeviceInfo) => void) | null = null;
-  private deviceInfoTimeout: NodeJS.Timeout | null = null;
+  private deviceInfoResolve: ((data: DeviceInfo | null) => void) | null = null;
 
   async connect(): Promise<void> {
-    if (this.connected) return;
+    if (this.connected && this.client?.connected) return;
     if (this.connectPromise) return this.connectPromise;
 
     this.connectPromise = new Promise((resolve, reject) => {
       try {
         this.client = mqtt.connect(MQTT_BROKER, {
           clientId: MQTT_CLIENT_ID,
-          reconnectPeriod: 1000,
+          reconnectPeriod: 2000,
           connectTimeout: 5000,
           clean: true,
         });
 
-        this.client.on('connect', () => {
+        this.client.on('connect', async () => {
           this.connected = true;
-          this.subscribe();
-          resolve();
+          
+          try {
+            await this.subscribe();
+            this.connectPromise = null;
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
         });
 
         this.client.on('message', (topic, message) => {
-          this.handleMessage(topic, message.toString());
+          const msgStr = message.toString();
+          
+          if (topic === 'smart-bay/info') {
+            this.handleDeviceInfo(msgStr);
+          }
         });
 
-        this.client.on('error', () => {
+        this.client.on('error', (err) => {
           this.connected = false;
           this.connectPromise = null;
-          reject(new Error('MQTT connection error'));
+          reject(err);
         });
 
         this.client.on('close', () => {
           this.connected = false;
+          this.connectPromise = null;
         });
-
-        this.client.on('offline', () => {
-          this.connected = false;
-        });
-      } catch {
+      } catch (err) {
         this.connectPromise = null;
-        reject(new Error('MQTT connection failed'));
+        reject(err);
       }
     });
 
     return this.connectPromise;
   }
 
-  private subscribe() {
-    if (!this.client) return;
-
-    this.client.subscribe('smart-bay/device-info', () => {
+  private subscribe(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.client) return reject(new Error('No client'));
+      
+      this.client.subscribe('smart-bay/#', { qos: 0 }, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
   }
 
-  private async handleMessage(topic: string, message: string) {
-    if (topic === 'smart-bay/device-info') {
-      try {
-        const data = JSON.parse(message);
-
-        if (this.deviceInfoResolve) {
-          this.deviceInfoResolve(data);
-          this.deviceInfoResolve = null;
-          if (this.deviceInfoTimeout) {
-            clearTimeout(this.deviceInfoTimeout);
-            this.deviceInfoTimeout = null;
-          }
-        }
-
-        await fetch('http://localhost:3000/api/sync', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-      } catch {
+  private handleDeviceInfo(message: string) {
+    try {
+      const data = JSON.parse(message);
+      if (this.deviceInfoResolve) {
+        const resolve = this.deviceInfoResolve;
+        this.deviceInfoResolve = null;
+        resolve(data);
       }
+    } catch {
     }
   }
 
   async requestDeviceInfo(): Promise<DeviceInfo | null> {
-    await this.connect();
-
-    return new Promise((resolve, reject) => {
-      this.deviceInfoResolve = resolve;
-
-      const command = { command: 'device_info_request' };
-      const message = JSON.stringify(command);
-
-      this.client?.publish('smart-bay/command', message, { qos: 1 }, (err) => {
-        if (err) {
-          this.deviceInfoResolve = null;
-          reject(err);
-        }
-      });
-
-      this.deviceInfoTimeout = setTimeout(() => {
-        this.deviceInfoResolve = null;
-        resolve(null);
-      }, 5000);
-    });
-  }
-
-  async publishBooking(event: {
-    event: string;
-    booking_id: string;
-    bay_id: string;
-    customer?: string;
-    start_time?: string;
-    end_time?: string;
-  }): Promise<void> {
-    await this.connect();
-
-    return new Promise((resolve, reject) => {
-      if (!this.client) {
-        reject(new Error('MQTT client not initialized'));
-        return;
-      }
-
-      const message = JSON.stringify(event);
-
-      this.client.publish('smart-bay/booking', message, { qos: 1 }, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
-  async publishCommand(command: {
-    command: string;
-    bay_id?: string;
-    booking_id?: string;
-  }): Promise<void> {
     try {
       await this.connect();
     } catch {
-      throw new Error('MQTT broker connection failed. Please try again.');
+      return null;
     }
 
-    return new Promise((resolve, reject) => {
-      if (!this.client) {
-        reject(new Error('MQTT client not initialized'));
-        return;
-      }
+    return new Promise((resolve) => {
+      this.deviceInfoResolve = resolve;
+      const command = { command: 'device_info_request' };
+      
+      this.client?.publish('smart-bay/command', JSON.stringify(command), { qos: 0 });
 
-      const message = JSON.stringify(command);
-
-      const timeout = setTimeout(() => {
-        reject(new Error('MQTT publish timeout. Please try again.'));
-      }, 5000);
-
-      this.client.publish('smart-bay/command', message, { qos: 1 }, (err) => {
-        clearTimeout(timeout);
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
+      setTimeout(() => {
+        if (this.deviceInfoResolve === resolve) {
+          this.deviceInfoResolve = null;
+          resolve(null);
         }
-      });
+      }, 10000);
     });
   }
 
+  async publishBooking(event: any): Promise<void> {
+    await this.connect();
+    this.client?.publish('smart-bay/booking', JSON.stringify(event), { qos: 0 });
+  }
+
+  async publishCommand(command: any): Promise<void> {
+    await this.connect();
+    this.client?.publish('smart-bay/command', JSON.stringify(command), { qos: 0 });
+  }
+
   isConnected(): boolean {
-    return this.connected;
+    return this.connected && (this.client?.connected || false);
   }
 }
 

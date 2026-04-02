@@ -1,7 +1,6 @@
 export const DEVICE_API = {
   SYNC: '/api/device/sync',
   INFO: '/api/device/info',
-  STATUS: '/api/device/status',
   CONTROL: '/api/device/control',
 } as const;
 

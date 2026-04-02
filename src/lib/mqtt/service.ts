@@ -17,6 +17,7 @@ class MqttService {
   private statusListeners: ((status: BayStatus) => void)[] = [];
   private bookingListeners: ((event: BookingEvent) => void)[] = [];
   private deviceInfoListeners: ((info: DeviceInfo) => void)[] = [];
+  private connectionListeners: ((connected: boolean) => void)[] = [];
   private connected: boolean = false;
 
   connect() {
@@ -31,6 +32,7 @@ class MqttService {
 
       this.client.on('connect', () => {
         this.connected = true;
+        this.notifyConnectionListeners(true);
         this.subscribe();
       });
 
@@ -40,14 +42,29 @@ class MqttService {
 
       this.client.on('error', () => {
         this.connected = false;
+        this.notifyConnectionListeners(false);
       });
 
       this.client.on('close', () => {
         this.connected = false;
+        this.notifyConnectionListeners(false);
       });
     } catch {
     }
   }
+
+  private notifyConnectionListeners(connected: boolean) {
+    this.connectionListeners.forEach(cb => cb(connected));
+  }
+
+  onConnectionChange(callback: (connected: boolean) => void) {
+    this.connectionListeners.push(callback);
+    callback(this.connected);
+    return () => {
+      this.connectionListeners = this.connectionListeners.filter(cb => cb !== callback);
+    };
+  }
+
 
   private subscribe() {
     if (!this.client) return;

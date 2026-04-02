@@ -8,7 +8,6 @@ interface DeviceState {
   error: string | null;
   syncDevice: (data?: unknown) => Promise<unknown>;
   getDeviceInfo: () => Promise<unknown>;
-  getDeviceStatus: () => Promise<unknown>;
   sendControl: (command: string, bayId?: string) => Promise<unknown>;
 }
 
@@ -38,17 +37,6 @@ export const useDeviceStore = create<DeviceState>((set) => ({
       return response.data;
     } catch (error) {
       const message = axios.isAxiosError(error) ? error.response?.data?.error : 'Failed to get device info';
-      set({ error: message });
-      throw error;
-    }
-  },
-
-  getDeviceStatus: async () => {
-    try {
-      const response = await axios.get(DEVICE_API.STATUS);
-      return response.data;
-    } catch (error) {
-      const message = axios.isAxiosError(error) ? error.response?.data?.error : 'Failed to get device status';
       set({ error: message });
       throw error;
     }
