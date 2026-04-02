@@ -45,6 +45,7 @@ void connectWiFi() {
   Serial.println("\nWiFi Connected! IP: " + WiFi.localIP().toString());
 }
 
+// LOGIC: TURN ON
 void turnOnBay(Bay& bay) {
   digitalWrite(bay.relayPin, HIGH);
   bay.active = true;
@@ -52,6 +53,7 @@ void turnOnBay(Bay& bay) {
   bay.endTime = millis() + 3600000;
 }
 
+// LOGIC: TURN OFF
 void turnOffBay(Bay& bay) {
   digitalWrite(bay.relayPin, LOW);
   bay.active = false;
@@ -100,7 +102,7 @@ void publishDeviceInfo() {
     bayObj["bay_id"] = bays[i].bayId;
     bayObj["relay_pin"] = bays[i].relayPin;
     bayObj["name"] = bays[i].bayId;
-    bayObj["active"] = bays[i].active; // Tambahkan status fisik relay
+    bayObj["active"] = bays[i].active;
   }
   
   char output[512];
@@ -146,33 +148,30 @@ void callback(char* topic, byte* payload, unsigned int length) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload, length);
 
-  if (error) {
-    return;
-  }
+  if (error) return;
 
   const char* bayId = doc["bay_id"];
   const char* event = doc["event"];
 
+  // LOGIC: EVENT HANDLING (BOOKING)
   if (strcmp(topic, TOPIC_BOOKING) == 0) {
+    if (!bayId) return;
+
     for (int i = 0; i < 3; i++) {
       if (strcmp(bays[i].bayId, bayId) == 0) {
-        if (strcmp(event, "booking_started") == 0) {
-          turnOnBay(bays[i]);
-        }
-        else if (strcmp(event, "booking_ended") == 0) {
-          turnOffBay(bays[i]);
-        }
-        else if (strcmp(event, "booking_extended") == 0) {
-          bays[i].endTime = millis() + 3600000;
-        }
+        if (event && strcmp(event, "booking_started") == 0) turnOnBay(bays[i]);
+        else if (event && strcmp(event, "booking_ended") == 0) turnOffBay(bays[i]);
+        else if (event && strcmp(event, "booking_extended") == 0) bays[i].endTime = millis() + 3600000;
         break;
       }
     }
-
+    publishDeviceInfo();
     publishActiveBaysResponse();
   }
+  // LOGIC: MANUAL COMMANDS
   else if (strcmp(topic, TOPIC_COMMAND) == 0) {
     const char* command = doc["command"];
+    if (!command) return;
 
     if (strcmp(command, "device_info_request") == 0) {
       Serial.println("\n[MQTT] Broker requested device info");
@@ -180,16 +179,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
+    if (!bayId) return;
     Serial.printf("\n[MQTT] Command: %s | Bay: %s\n", command, bayId);
 
+    bool found = false;
     for (int i = 0; i < 3; i++) {
       if (strcmp(bays[i].bayId, bayId) == 0) {
-        if (strcmp(command, "turn_on") == 0) {
-          turnOnBay(bays[i]);
-        }
-        else if (strcmp(command, "turn_off") == 0) {
-          turnOffBay(bays[i]);
-        }
+        found = true;
+        if (strcmp(command, "turn_on") == 0) turnOnBay(bays[i]);
+        else if (strcmp(command, "turn_off") == 0) turnOffBay(bays[i]);
         else if (strcmp(command, "reset_error") == 0) {
           bays[i].hasError = false;
           bays[i].lampOk = true;
@@ -198,8 +196,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
       }
     }
 
-    publishDeviceInfo(); // Segera lapor status terbaru setelah eksekusi
-    publishActiveBaysResponse();
+    if (found) {
+      publishDeviceInfo();
+      publishActiveBaysResponse();
+    }
   }
 }
 

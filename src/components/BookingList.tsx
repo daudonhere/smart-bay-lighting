@@ -11,19 +11,6 @@ interface BookingWithBay extends BookingEventResponse {
   status?: 'created' | 'started' | 'extended' | 'completed' | 'cancelled';
 }
 
-function formatTime12Hour(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  });
-}
-
 export function BookingList() {
   const getBookings = useBookingStore((state) => state.getBookings);
 
@@ -61,13 +48,14 @@ export function BookingList() {
     );
   }
 
-  const activeBookings = bookings.filter((b: BookingWithBay) => 
+  // Menampilkan hanya booking yang aktif atau akan datang
+  const displayableBookings = bookings.filter((b: BookingWithBay) => 
     b.status === 'started' || 
     b.status === 'extended' || 
     b.status === 'created'
   );
 
-  if (activeBookings.length === 0) {
+  if (displayableBookings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-3xl">
         <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
@@ -86,23 +74,23 @@ export function BookingList() {
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-          <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Live Queue</h3>
+          <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Schedules</h3>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-[10px] font-black text-zinc-400">
           <Info className="w-3 h-3" />
-          {activeBookings.length} TOTAL
+          {displayableBookings.length} TOTAL
         </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {activeBookings.map((booking: BookingWithBay) => (
+        {displayableBookings.map((booking: BookingWithBay) => (
           <BookingCard
             key={booking.booking_id}
             id={booking.booking_id}
             bayName={booking.bay_id.toUpperCase()}
             customerName={booking.customer}
-            startTime={formatTime12Hour(booking.start_time)}
-            endTime={formatTime12Hour(booking.end_time)}
+            startTime={booking.start_time} // Kirim RAW ISO string
+            endTime={booking.end_time}     // Kirim RAW ISO string
             status={booking.status || 'created'}
           />
         ))}

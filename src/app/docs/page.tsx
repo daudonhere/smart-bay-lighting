@@ -55,7 +55,7 @@ interface EndpointCategory {
 const endpointCategories: EndpointCategory[] = [
   {
     title: 'Booking Management',
-    description: 'Endpoints for managing parking bay bookings',
+    description: 'Endpoints for managing area bay bookings',
     icon: <Layers className="w-5 h-5" />,
     endpoints: [
       {
@@ -175,7 +175,7 @@ const endpointCategories: EndpointCategory[] = [
   },
   {
     title: 'Bay Management',
-    description: 'Endpoints for managing parking bays',
+    description: 'Endpoints for managing area bays',
     icon: <Monitor className="w-5 h-5" />,
     endpoints: [
       {

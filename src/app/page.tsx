@@ -25,6 +25,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const getBays = useBayStore((state) => state.getBays);
   const createBooking = useBookingStore((state) => state.createBooking);
+  const getBookings = useBookingStore((state) => state.getBookings);
   
   const { data: response, isLoading: baysLoading } = useQuery({
     queryKey: ['bays'],
@@ -35,7 +36,16 @@ export default function Dashboard() {
     refetchOnMount: true,
   });
 
+  const { data: bookingsResponse } = useQuery({
+    queryKey: ['bookings'],
+    queryFn: async () => {
+      return getBookings() as Promise<{ data: any[] }>;
+    },
+    staleTime: 0,
+  });
+
   const bays = response?.data || [];
+  const existingBookings = bookingsResponse?.data || [];
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateBookingDto) => {
@@ -137,7 +147,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-3">
                 <ClipboardList className="w-5 h-5 text-indigo-500" />
-                <h3 className="text-lg font-bold text-white tracking-tight uppercase tracking-[0.1em]">Your Schedule</h3>
+                <h3 className="text-lg font-bold text-white tracking-tight uppercase tracking-[0.1em]">Booking List</h3>
               </div>
               <div className="h-px flex-1 mx-6 bg-gradient-to-r from-zinc-800 to-transparent"></div>
             </div>
@@ -161,12 +171,6 @@ export default function Dashboard() {
                     <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest">Complete your reservation</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowBookingForm(false)}
-                  className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700 transition-all active:scale-90"
-                >
-                  <X className="w-6 h-6" />
-                </button>
               </div>
 
               <form onSubmit={handleSubmit} className="p-8 sm:p-12 space-y-10">
@@ -192,38 +196,28 @@ export default function Dashboard() {
                     </label>
                     <div className="w-full bg-blue-500/5 border border-blue-500/20 rounded-2xl py-4 px-6 text-blue-400 font-black text-xl uppercase tracking-tighter flex items-center justify-between">
                       {selectedBay}
-                      <ChevronRight className="w-5 h-5 text-blue-500/30" />
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      Start Time
-                    </label>
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2">
-                      <DateTimePicker
-                        value={startTime}
-                        onChange={setStartTime}
-                        minDate={minDateTime}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-xs font-black text-zinc-500 uppercase tracking-[0.2em] px-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      End Time
-                    </label>
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2">
-                      <DateTimePicker
-                        value={endTime}
-                        onChange={setEndTime}
-                        minDate={startTime ? new Date(startTime) : minDateTime}
-                      />
-                    </div>
-                  </div>
+                  <DateTimePicker
+                    label="Start Time"
+                    value={startTime}
+                    onChange={setStartTime}
+                    selectedBayId={selectedBay}
+                    existingBookings={existingBookings}
+                    type="start"
+                  />
+                  <DateTimePicker
+                    label="End Time"
+                    value={endTime}
+                    onChange={setEndTime}
+                    selectedBayId={selectedBay}
+                    existingBookings={existingBookings}
+                    type="end"
+                    startTimeValue={startTime}
+                  />
                 </div>
 
                 <div className="pt-6 flex flex-col sm:flex-row gap-4">

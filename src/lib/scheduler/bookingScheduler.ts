@@ -96,7 +96,7 @@ class BookingScheduler {
     await prisma.bay.update({
       where: { id: booking.bayId },
       data: {
-        isActive: event === 'booking_ended' ? true : false,
+        isActive: event === 'booking_started' ? true : false,
       },
     });
 
